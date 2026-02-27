@@ -29,7 +29,24 @@
         <role_conditions/>
         <script><![CDATA[(function executeRule(current, previous /*null when async*/) {
 
-	// Add your code here
+	// Calculate the date 5 days ago from now
+	var cutoffDate = new GlideDateTime();
+	cutoffDate.addDaysUTC(-5);
+
+	// Query Demo Scoped Table for records updated in the last 5 days
+	var gr = new GlideRecord('x_snc_demo_scope_0_demo_scoped_table');
+	gr.addQuery('sys_updated_on', '>=', cutoffDate.getValue());
+	gr.orderByDesc('sys_updated_on');
+	gr.query();
+
+	gs.log('Records updated in the last 5 days in Demo Scoped Table:');
+	while (gr.next()) {
+		gs.log('SysID: ' + gr.sys_id +
+			' | Name: ' + gr.getDisplayValue() +
+			' | Updated: ' + gr.getValue('sys_updated_on') +
+			' | Updated By: ' + gr.getValue('sys_updated_by'));
+	}
+	gs.log('Total records found: ' + gr.getRowCount());
 
 })(current, previous);]]></script>
         <sys_class_name>sys_script</sys_class_name>
