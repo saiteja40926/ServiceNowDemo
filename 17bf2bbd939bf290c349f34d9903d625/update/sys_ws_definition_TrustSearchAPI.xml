@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update table="sys_ws_definition">
+    <sys_ws_definition action="INSERT_OR_UPDATE">
+        <active>true</active>
+        <base_uri>trust_search</base_uri>
+        <consumes>application/json</consumes>
+        <consumes_customized>false</consumes_customized>
+        <description>Trust Search Engine REST API - provides search and behavior tracking endpoints for the Service Portal widget.</description>
+        <enforces_acl>false</enforces_acl>
+        <name>Trust Search API</name>
+        <produces>application/json</produces>
+        <produces_customized>false</produces_customized>
+        <sys_class_name>sys_ws_definition</sys_class_name>
+        <sys_created_by>saiteja</sys_created_by>
+        <sys_created_on>2026-02-27 16:03:00</sys_created_on>
+        <sys_id>cc000001000000000000000000000001</sys_id>
+        <sys_mod_count>0</sys_mod_count>
+        <sys_name>Trust Search API</sys_name>
+        <sys_package display_value="Demo scoped app" source="x_snc_demo_scope_0">17bf2bbd939bf290c349f34d9903d625</sys_package>
+        <sys_policy/>
+        <sys_scope display_value="Demo scoped app">17bf2bbd939bf290c349f34d9903d625</sys_scope>
+        <sys_update_name>sys_ws_definition_TrustSearchAPI</sys_update_name>
+        <sys_updated_by>saiteja</sys_updated_by>
+        <sys_updated_on>2026-02-27 16:03:00</sys_updated_on>
+    </sys_ws_definition>
+</record_update>

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update table="sp_instance">
+    <sp_instance action="INSERT_OR_UPDATE">
+        <column display_value="trust_search_col">ff000003000000000000000000000003</column>
+        <order>10</order>
+        <sp_log/>
+        <widget display_value="Trust Search Engine">dd000001000000000000000000000001</widget>
+        <widget_parameters>{}</widget_parameters>
+        <sys_class_name>sp_instance</sys_class_name>
+        <sys_created_by>saiteja</sys_created_by>
+        <sys_created_on>2026-02-27 16:11:00</sys_created_on>
+        <sys_id>ff000004000000000000000000000004</sys_id>
+        <sys_mod_count>0</sys_mod_count>
+        <sys_name>trust_search_instance</sys_name>
+        <sys_package display_value="Demo scoped app" source="x_snc_demo_scope_0">17bf2bbd939bf290c349f34d9903d625</sys_package>
+        <sys_policy/>
+        <sys_scope display_value="Demo scoped app">17bf2bbd939bf290c349f34d9903d625</sys_scope>
+        <sys_update_name>sp_instance_trust_search</sys_update_name>
+        <sys_updated_by>saiteja</sys_updated_by>
+        <sys_updated_on>2026-02-27 16:11:00</sys_updated_on>
+    </sp_instance>
+</record_update>

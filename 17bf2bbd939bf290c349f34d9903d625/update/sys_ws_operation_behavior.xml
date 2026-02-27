@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update table="sys_ws_operation">
+    <sys_ws_operation action="INSERT_OR_UPDATE">
+        <active>true</active>
+        <consumes>application/json</consumes>
+        <consumes_customized>false</consumes_customized>
+        <http_method>POST</http_method>
+        <name>behavior</name>
+        <operation_script><![CDATA[(function process(/*RESTAPIRequest*/ request, /*RESTAPIResponse*/ response) {
+    var body;
+    try {
+        body = request.body.data;
+    } catch(e) {
+        response.setStatus(400);
+        response.setBody({ error: 'Invalid JSON body.' });
+        return;
+    }
+
+    var eventType   = body.event_type   || '';
+    var query       = body.query        || '';
+    var indexSysId  = body.index_sys_id || '';
+
+    try {
+        var tracker = new x_snc_demo_scope_0.TrustBehaviorTracker();
+
+        if (eventType === 'click') {
+            var rank = parseInt(body.rank_position || 0);
+            tracker.recordClick(query, indexSysId, rank);
+
+        } else if (eventType === 'dwell') {
+            var dwell = parseFloat(body.dwell_seconds || 0);
+            tracker.recordDwell(query, indexSysId, dwell);
+
+        } else if (eventType === 'bounce') {
+            tracker.recordBounce(query, indexSysId);
+
+        } else {
+            response.setStatus(400);
+            response.setBody({ error: 'Unknown event_type. Use: click, dwell, bounce.' });
+            return;
+        }
+
+        response.setStatus(200);
+        response.setBody({ success: true, event_type: eventType });
+
+    } catch(e) {
+        response.setStatus(500);
+        response.setBody({ error: e.message });
+    }
+
+})(request, response);]]></operation_script>
+        <produces>application/json</produces>
+        <produces_customized>false</produces_customized>
+        <relative_path>/behavior</relative_path>
+        <request_example/>
+        <response_example/>
+        <security_profiles/>
+        <web_service_definition display_value="Trust Search API">cc000001000000000000000000000001</web_service_definition>
+        <sys_class_name>sys_ws_operation</sys_class_name>
+        <sys_created_by>saiteja</sys_created_by>
+        <sys_created_on>2026-02-27 16:05:00</sys_created_on>
+        <sys_id>cc000003000000000000000000000003</sys_id>
+        <sys_mod_count>0</sys_mod_count>
+        <sys_name>behavior</sys_name>
+        <sys_package display_value="Demo scoped app" source="x_snc_demo_scope_0">17bf2bbd939bf290c349f34d9903d625</sys_package>
+        <sys_policy/>
+        <sys_scope display_value="Demo scoped app">17bf2bbd939bf290c349f34d9903d625</sys_scope>
+        <sys_update_name>sys_ws_operation_behavior</sys_update_name>
+        <sys_updated_by>saiteja</sys_updated_by>
+        <sys_updated_on>2026-02-27 16:05:00</sys_updated_on>
+    </sys_ws_operation>
+    <sys_translated_text action="delete_multiple" query="documentkey=cc000003000000000000000000000003"/>
+</record_update>

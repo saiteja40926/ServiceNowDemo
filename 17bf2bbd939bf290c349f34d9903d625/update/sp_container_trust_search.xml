@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update table="sp_container">
+    <sp_container action="INSERT_OR_UPDATE">
+        <background_color/>
+        <bootstrap_alt>false</bootstrap_alt>
+        <color/>
+        <layout>12</layout>
+        <order>10</order>
+        <page display_value="trust_search">ee000001000000000000000000000001</page>
+        <sp_log/>
+        <sys_class_name>sp_container</sys_class_name>
+        <sys_created_by>saiteja</sys_created_by>
+        <sys_created_on>2026-02-27 16:08:00</sys_created_on>
+        <sys_id>ff000001000000000000000000000001</sys_id>
+        <sys_mod_count>0</sys_mod_count>
+        <sys_name>trust_search_container</sys_name>
+        <sys_package display_value="Demo scoped app" source="x_snc_demo_scope_0">17bf2bbd939bf290c349f34d9903d625</sys_package>
+        <sys_policy/>
+        <sys_scope display_value="Demo scoped app">17bf2bbd939bf290c349f34d9903d625</sys_scope>
+        <sys_update_name>sp_container_trust_search</sys_update_name>
+        <sys_updated_by>saiteja</sys_updated_by>
+        <sys_updated_on>2026-02-27 16:08:00</sys_updated_on>
+        <width>full</width>
+    </sp_container>
+</record_update>

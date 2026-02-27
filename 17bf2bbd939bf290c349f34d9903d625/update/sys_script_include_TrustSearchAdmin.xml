@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update table="sys_script_include">
+    <sys_script_include action="INSERT_OR_UPDATE">
+        <access>public</access>
+        <active>true</active>
+        <api_name>x_snc_demo_scope_0.TrustSearchAdmin</api_name>
+        <caller_access/>
+        <client_callable>false</client_callable>
+        <description>Admin utility for bulk-indexing ServiceNow records into the Trust Search index. Run seedDefaultTables() in a background script to populate the index with KB articles, incidents, and catalog items.</description>
+        <name>TrustSearchAdmin</name>
+        <script><![CDATA[var TrustSearchAdmin = Class.create();
+TrustSearchAdmin.prototype = {
+    initialize: function() {
+        this.indexer = new x_snc_demo_scope_0.TrustSearchIndexer();
+    },
+
+    seedDefaultTables: function() {
+        var results = {};
+        results.kb_articles = this._indexKBArticles();
+        results.incidents   = this._indexIncidents();
+        results.catalog     = this._indexCatalogItems();
+        results.problems    = this._indexProblems();
+        gs.log('[TrustSearchAdmin] Indexing complete: ' + JSON.stringify(results));
+        return results;
+    },
+
+    _indexKBArticles: function() {
+        var gr = new GlideRecord('kb_knowledge');
+        gr.addQuery('workflow_state', 'published');
+        gr.setLimit(200);
+        gr.query();
+        var count = 0;
+        while (gr.next()) {
+            var title = gr.getValue('short_description') || '';
+            var body  = gr.getValue('text') || gr.getValue('wiki_content') || '';
+            var url   = '/kb_view.do?sysparm_article=' + gr.getValue('number');
+            this.indexer.indexRecord(
+                'kb_knowledge',
+                gr.sys_id.toString(),
+                title,
+                this._stripHtml(body),
+                'kb',
+                url
+            );
+            count++;
+        }
+        return count;
+    },
+
+    _indexIncidents: function() {
+        var gr = new GlideRecord('incident');
+        gr.addQuery('state', 'IN', '6,7');
+        gr.orderByDesc('sys_updated_on');
+        gr.setLimit(150);
+        gr.query();
+        var count = 0;
+        while (gr.next()) {
+            var title = gr.getValue('short_description') || '';
+            var body  = (gr.getValue('description') || '') + ' ' + (gr.getValue('close_notes') || '');
+            var url   = '/incident.do?sys_id=' + gr.sys_id;
+            this.indexer.indexRecord(
+                'incident',
+                gr.sys_id.toString(),
+                title,
+                body,
+                'incident',
+                url
+            );
+            count++;
+        }
+        return count;
+    },
+
+    _indexCatalogItems: function() {
+        var gr = new GlideRecord('sc_cat_item');
+        gr.addQuery('active', true);
+        gr.setLimit(100);
+        gr.query();
+        var count = 0;
+        while (gr.next()) {
+            var title = gr.getValue('name') || '';
+            var body  = gr.getValue('description') || gr.getValue('short_description') || '';
+            var url   = '/sc_cat_item.do?sys_id=' + gr.sys_id;
+            this.indexer.indexRecord(
+                'sc_cat_item',
+                gr.sys_id.toString(),
+                title,
+                this._stripHtml(body),
+                'catalog',
+                url
+            );
+            count++;
+        }
+        return count;
+    },
+
+    _indexProblems: function() {
+        var gr = new GlideRecord('problem');
+        gr.addQuery('state', 'IN', '4,5');
+        gr.orderByDesc('sys_updated_on');
+        gr.setLimit(100);
+        gr.query();
+        var count = 0;
+        while (gr.next()) {
+            var title = gr.getValue('short_description') || '';
+            var body  = (gr.getValue('description') || '') + ' ' + (gr.getValue('cause_notes') || '') + ' ' + (gr.getValue('fix_notes') || '');
+            var url   = '/problem.do?sys_id=' + gr.sys_id;
+            this.indexer.indexRecord(
+                'problem',
+                gr.sys_id.toString(),
+                title,
+                body,
+                'problem',
+                url
+            );
+            count++;
+        }
+        return count;
+    },
+
+    indexCustomTable: function(tableName, titleField, bodyField, categoryLabel, limit) {
+        return this.indexer.bulkIndexTable(tableName, titleField, bodyField, categoryLabel, limit || 100);
+    },
+
+    rebuildIndex: function() {
+        var del = new GlideRecord('x_snc_demo_scope_0_search_index');
+        del.deleteMultiple();
+        gs.log('[TrustSearchAdmin] Index cleared. Re-seeding...');
+        return this.seedDefaultTables();
+    },
+
+    getIndexStats: function() {
+        var total = new GlideAggregate('x_snc_demo_scope_0_search_index');
+        total.addAggregate('COUNT');
+        total.query();
+        var totalCount = 0;
+        if (total.next()) totalCount = parseInt(total.getAggregate('COUNT'));
+
+        var byCategory = new GlideAggregate('x_snc_demo_scope_0_search_index');
+        byCategory.addAggregate('COUNT');
+        byCategory.groupBy('category');
+        byCategory.query();
+        var cats = {};
+        while (byCategory.next()) {
+            cats[byCategory.getValue('category')] = parseInt(byCategory.getAggregate('COUNT'));
+        }
+
+        var highTrust = new GlideAggregate('x_snc_demo_scope_0_search_index');
+        highTrust.addQuery('trust_score', '>=', 0.8);
+        highTrust.addAggregate('COUNT');
+        highTrust.query();
+        var highCount = 0;
+        if (highTrust.next()) highCount = parseInt(highTrust.getAggregate('COUNT'));
+
+        return {
+            total_indexed: totalCount,
+            by_category: cats,
+            high_trust_count: highCount
+        };
+    },
+
+    _stripHtml: function(html) {
+        if (!html) return '';
+        return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 2000);
+    },
+
+    type: 'TrustSearchAdmin'
+};]]></script>
+        <sys_class_name>sys_script_include</sys_class_name>
+        <sys_created_by>saiteja</sys_created_by>
+        <sys_created_on>2026-02-27 16:12:00</sys_created_on>
+        <sys_id>bb000004000000000000000000000004</sys_id>
+        <sys_mod_count>0</sys_mod_count>
+        <sys_name>TrustSearchAdmin</sys_name>
+        <sys_package display_value="Demo scoped app" source="x_snc_demo_scope_0">17bf2bbd939bf290c349f34d9903d625</sys_package>
+        <sys_policy/>
+        <sys_scope display_value="Demo scoped app">17bf2bbd939bf290c349f34d9903d625</sys_scope>
+        <sys_update_name>sys_script_include_TrustSearchAdmin</sys_update_name>
+        <sys_updated_by>saiteja</sys_updated_by>
+        <sys_updated_on>2026-02-27 16:12:00</sys_updated_on>
+    </sys_script_include>
+    <sys_translated_text action="delete_multiple" query="documentkey=bb000004000000000000000000000004"/>
+</record_update>

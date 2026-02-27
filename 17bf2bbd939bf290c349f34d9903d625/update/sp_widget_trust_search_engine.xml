@@ -1,0 +1,560 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update table="sp_widget">
+    <sp_widget action="INSERT_OR_UPDATE">
+        <category>custom</category>
+        <client_script><![CDATA[function($scope, $http, $timeout) {
+    var c = this;
+    c.query         = '';
+    c.results       = [];
+    c.loading       = false;
+    c.searched      = false;
+    c.error         = '';
+    c.lastQuery     = '';
+    c.debounceTimer = null;
+
+    var dwellTimers = {};
+    var clickTimes  = {};
+
+    c.onKeyUp = function($event) {
+        if ($event.keyCode === 13) {
+            c.doSearch();
+            return;
+        }
+        if (c.debounceTimer) $timeout.cancel(c.debounceTimer);
+        if (c.query.length >= 3) {
+            c.debounceTimer = $timeout(function() { c.doSearch(); }, 500);
+        }
+    };
+
+    c.doSearch = function() {
+        if (!c.query || c.query.trim().length < 2) return;
+        c.loading  = true;
+        c.searched = true;
+        c.error    = '';
+        c.lastQuery = c.query;
+
+        _clearDwellTimers();
+
+        $http({
+            method: 'GET',
+            url: '/api/x_snc_demo_scope_0/trust_search/search',
+            params: { q: c.query, limit: 15 }
+        }).then(function(response) {
+            c.loading = false;
+            if (response.data && response.data.results) {
+                c.results = response.data.results;
+            } else {
+                c.results = [];
+            }
+        }).catch(function(err) {
+            c.loading = false;
+            c.error   = 'Search failed. Please try again.';
+            c.results = [];
+        });
+    };
+
+    c.onResultClick = function(result, index) {
+        var indexSysId = result.sys_id;
+        clickTimes[indexSysId] = new Date().getTime();
+
+        $http({
+            method: 'POST',
+            url: '/api/x_snc_demo_scope_0/trust_search/behavior',
+            data: {
+                event_type:   'click',
+                query:        c.lastQuery,
+                index_sys_id: indexSysId,
+                rank_position: index + 1
+            }
+        });
+
+        if (dwellTimers[indexSysId]) $timeout.cancel(dwellTimers[indexSysId]);
+        dwellTimers[indexSysId] = $timeout(function() {
+            var elapsed = (new Date().getTime() - (clickTimes[indexSysId] || 0)) / 1000;
+            if (elapsed < 3) {
+                _sendBounce(indexSysId);
+            } else {
+                _sendDwell(indexSysId, elapsed);
+            }
+        }, 8000);
+    };
+
+    c.getTrustColor = function(label) {
+        if (label === 'high')   return '#10b981';
+        if (label === 'medium') return '#f59e0b';
+        return '#ef4444';
+    };
+
+    c.getTrustIcon = function(label) {
+        if (label === 'high')   return '✔';
+        if (label === 'medium') return '~';
+        return '✘';
+    };
+
+    c.getTrustPercent = function(score) {
+        return Math.round((score || 0) * 100);
+    };
+
+    c.getBarWidth = function(score) {
+        return Math.round((score || 0) * 100) + '%';
+    };
+
+    c.getCategoryIcon = function(category) {
+        var icons = {
+            'kb':       '📖',
+            'incident': '🔥',
+            'catalog':  '🛍',
+            'problem':  '⚠',
+            'change':   '🔄'
+        };
+        return icons[(category || '').toLowerCase()] || '📄';
+    };
+
+    function _sendDwell(indexSysId, seconds) {
+        $http({
+            method: 'POST',
+            url: '/api/x_snc_demo_scope_0/trust_search/behavior',
+            data: {
+                event_type:   'dwell',
+                query:        c.lastQuery,
+                index_sys_id: indexSysId,
+                dwell_seconds: Math.round(seconds)
+            }
+        });
+    }
+
+    function _sendBounce(indexSysId) {
+        $http({
+            method: 'POST',
+            url: '/api/x_snc_demo_scope_0/trust_search/behavior',
+            data: {
+                event_type:   'bounce',
+                query:        c.lastQuery,
+                index_sys_id: indexSysId
+            }
+        });
+    }
+
+    function _clearDwellTimers() {
+        for (var k in dwellTimers) {
+            if (dwellTimers[k]) $timeout.cancel(dwellTimers[k]);
+        }
+        dwellTimers = {};
+        clickTimes  = {};
+    }
+}]]></client_script>
+        <css><![CDATA[.ts-wrapper {
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  max-width: 860px;
+  margin: 40px auto;
+  padding: 0 16px;
+}
+
+.ts-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.ts-header h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 6px 0;
+}
+
+.ts-header p {
+  color: #64748b;
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+.ts-search-bar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 28px;
+}
+
+.ts-search-bar input {
+  flex: 1;
+  padding: 14px 18px;
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.2s;
+  color: #1e293b;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+.ts-search-bar input:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+}
+
+.ts-search-bar button {
+  padding: 14px 26px;
+  background: #6366f1;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(99,102,241,0.3);
+}
+
+.ts-search-bar button:hover {
+  background: #4f46e5;
+}
+
+.ts-loading {
+  text-align: center;
+  padding: 40px;
+  color: #6366f1;
+  font-size: 1rem;
+}
+
+.ts-spinner {
+  display: inline-block;
+  width: 28px;
+  height: 28px;
+  border: 3px solid #e0e7ff;
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  animation: ts-spin 0.7s linear infinite;
+  margin-bottom: 10px;
+}
+
+@keyframes ts-spin { to { transform: rotate(360deg); } }
+
+.ts-empty {
+  text-align: center;
+  padding: 48px 20px;
+  color: #94a3b8;
+}
+
+.ts-empty-icon {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: 12px;
+}
+
+.ts-result-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.ts-result-item {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-bottom: 14px;
+  cursor: pointer;
+  transition: box-shadow 0.2s, border-color 0.2s, transform 0.1s;
+  position: relative;
+}
+
+.ts-result-item:hover {
+  box-shadow: 0 4px 18px rgba(0,0,0,0.10);
+  border-color: #c7d2fe;
+  transform: translateY(-1px);
+}
+
+.ts-result-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.ts-result-icon {
+  font-size: 1.4rem;
+  flex-shrink: 0;
+  line-height: 1;
+  margin-top: 2px;
+}
+
+.ts-result-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #3730a3;
+  flex: 1;
+  text-decoration: none;
+  line-height: 1.4;
+}
+
+.ts-result-title:hover {
+  text-decoration: underline;
+}
+
+.ts-trust-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+  letter-spacing: 0.02em;
+}
+
+.ts-result-snippet {
+  color: #475569;
+  font-size: 0.88rem;
+  line-height: 1.6;
+  margin-bottom: 10px;
+  padding-left: 36px;
+}
+
+.ts-trust-panel {
+  padding-left: 36px;
+  margin-top: 6px;
+}
+
+.ts-trust-label {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 6px;
+}
+
+.ts-trust-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ts-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+}
+
+.ts-bar-name {
+  width: 90px;
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.ts-bar-track {
+  flex: 1;
+  height: 6px;
+  background: #f1f5f9;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.ts-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.4s ease;
+}
+
+.ts-bar-val {
+  width: 32px;
+  text-align: right;
+  color: #94a3b8;
+  font-size: 0.72rem;
+}
+
+.ts-meta-row {
+  display: flex;
+  gap: 16px;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  padding-left: 36px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.ts-meta-item strong {
+  color: #64748b;
+}
+
+.ts-rank-chip {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 8px;
+}
+
+.ts-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  padding: 16px;
+  color: #dc2626;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.ts-results-header {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin-bottom: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.ts-results-header strong {
+  color: #1e293b;
+}]]></css>
+        <description>Trust-aware search engine widget for Service Portal. Uses TF-IDF indexing, behavioral signals (CTR, dwell time, bounce rate), and automatic re-ranking to surface the most trustworthy results.</description>
+        <docs/>
+        <field_list/>
+        <has_preview>false</has_preview>
+        <id>trust-search-engine</id>
+        <internal>false</internal>
+        <link/>
+        <name>Trust Search Engine</name>
+        <option_schema>[]</option_schema>
+        <public>true</public>
+        <roles/>
+        <script><![CDATA[api.controller = function($scope) {
+    var c = this;
+    c.data.title    = 'Trust Search';
+    c.data.subtitle = 'Results ranked by relevance and community trust signals';
+};]]></script>
+        <servicenow>false</servicenow>
+        <sys_class_name>sp_widget</sys_class_name>
+        <sys_created_by>saiteja</sys_created_by>
+        <sys_created_on>2026-02-27 16:06:00</sys_created_on>
+        <sys_id>dd000001000000000000000000000001</sys_id>
+        <sys_mod_count>0</sys_mod_count>
+        <sys_name>Trust Search Engine</sys_name>
+        <sys_package display_value="Demo scoped app" source="x_snc_demo_scope_0">17bf2bbd939bf290c349f34d9903d625</sys_package>
+        <sys_policy/>
+        <sys_scope display_value="Demo scoped app">17bf2bbd939bf290c349f34d9903d625</sys_scope>
+        <sys_update_name>sp_widget_trust_search_engine</sys_update_name>
+        <sys_updated_by>saiteja</sys_updated_by>
+        <sys_updated_on>2026-02-27 16:06:00</sys_updated_on>
+        <template><![CDATA[<div class="ts-wrapper">
+  <div class="ts-header">
+    <h1>🔍 Trust Search</h1>
+    <p>Results are re-ranked automatically based on what people actually find useful</p>
+  </div>
+
+  <div class="ts-search-bar">
+    <input
+      type="text"
+      ng-model="c.query"
+      ng-keyup="c.onKeyUp($event)"
+      placeholder="Search knowledge articles, incidents, catalog items..."
+      autofocus
+    />
+    <button ng-click="c.doSearch()" ng-disabled="c.loading">
+      <span ng-if="!c.loading">Search</span>
+      <span ng-if="c.loading">...</span>
+    </button>
+  </div>
+
+  <div class="ts-error" ng-if="c.error">{{c.error}}</div>
+
+  <div class="ts-loading" ng-if="c.loading">
+    <div class="ts-spinner"></div>
+    <div>Searching &amp; ranking by trust...</div>
+  </div>
+
+  <div ng-if="!c.loading && c.searched && c.results.length === 0 && !c.error" class="ts-empty">
+    <span class="ts-empty-icon">🔎</span>
+    <strong>No results found</strong>
+    <p>Try different keywords, or ask your admin to index more records.</p>
+  </div>
+
+  <div ng-if="!c.loading && c.results.length > 0">
+    <div class="ts-results-header">
+      Showing <strong>{{c.results.length}}</strong> results for <strong>"{{c.lastQuery}}"</strong>
+      &nbsp;·&nbsp; Ranked by trust &amp; relevance
+    </div>
+
+    <ul class="ts-result-list">
+      <li
+        class="ts-result-item"
+        ng-repeat="r in c.results track by $index"
+        ng-click="c.onResultClick(r, $index)"
+      >
+        <span class="ts-rank-chip">#{{$index + 1}}</span>
+
+        <div class="ts-result-top">
+          <span class="ts-result-icon">{{c.getCategoryIcon(r.category)}}</span>
+          <a class="ts-result-title" ng-href="{{r.source_url}}" target="_blank" ng-click="$event.stopPropagation(); c.onResultClick(r, $index)">
+            {{r.title}}
+          </a>
+          <span
+            class="ts-trust-badge"
+            ng-style="{'background-color': c.getTrustColor(r.trust_label)}"
+            title="Trust score based on click-through rate, dwell time and bounce rate"
+          >
+            {{c.getTrustIcon(r.trust_label)}} {{c.getTrustPercent(r.computed_trust)}}%
+          </span>
+        </div>
+
+        <div class="ts-result-snippet" ng-if="r.body_snippet">
+          {{r.body_snippet.substring(0, 200)}}{{r.body_snippet.length > 200 ? '...' : ''}}
+        </div>
+
+        <div class="ts-trust-panel">
+          <div class="ts-trust-label">Trust Signals</div>
+          <div class="ts-trust-bars">
+
+            <div class="ts-bar-row">
+              <span class="ts-bar-name">Click-through</span>
+              <div class="ts-bar-track">
+                <div class="ts-bar-fill" ng-style="{width: c.getBarWidth(r.trust_signals.ctr), 'background-color': '#6366f1'}"></div>
+              </div>
+              <span class="ts-bar-val">{{Math.round(r.trust_signals.ctr * 100)}}%</span>
+            </div>
+
+            <div class="ts-bar-row">
+              <span class="ts-bar-name">Dwell time</span>
+              <div class="ts-bar-track">
+                <div class="ts-bar-fill" ng-style="{width: c.getBarWidth(r.trust_signals.dwell), 'background-color': '#10b981'}"></div>
+              </div>
+              <span class="ts-bar-val">{{Math.round(r.trust_signals.dwell * 100)}}%</span>
+            </div>
+
+            <div class="ts-bar-row">
+              <span class="ts-bar-name">Not bounced</span>
+              <div class="ts-bar-track">
+                <div class="ts-bar-fill" ng-style="{width: c.getBarWidth(r.trust_signals.bounce), 'background-color': '#f59e0b'}"></div>
+              </div>
+              <span class="ts-bar-val">{{Math.round(r.trust_signals.bounce * 100)}}%</span>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="ts-meta-row">
+          <span class="ts-meta-item"><strong>Clicks:</strong> {{r.trust_signals.clicks}}</span>
+          <span class="ts-meta-item"><strong>Impressions:</strong> {{r.trust_signals.impressions}}</span>
+          <span class="ts-meta-item"><strong>Avg dwell:</strong> {{Math.round(r.trust_signals.avg_dwell_seconds)}}s</span>
+          <span class="ts-meta-item"><strong>Category:</strong> {{r.category || 'General'}}</span>
+          <span class="ts-meta-item"><strong>Score:</strong> {{(r.final_score * 100).toFixed(1)}}</span>
+        </div>
+
+      </li>
+    </ul>
+  </div>
+
+  <div ng-if="!c.searched" class="ts-empty">
+    <span class="ts-empty-icon">💡</span>
+    <p>Start typing to search. Results learn from user behavior over time.</p>
+  </div>
+</div>]]></template>
+    </sp_widget>
+    <sys_translated_text action="delete_multiple" query="documentkey=dd000001000000000000000000000001"/>
+</record_update>

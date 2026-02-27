@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update table="sys_ws_operation">
+    <sys_ws_operation action="INSERT_OR_UPDATE">
+        <active>true</active>
+        <consumes>application/json</consumes>
+        <consumes_customized>false</consumes_customized>
+        <http_method>GET</http_method>
+        <name>search</name>
+        <operation_script><![CDATA[(function process(/*RESTAPIRequest*/ request, /*RESTAPIResponse*/ response) {
+    var query = request.queryParams.q || '';
+    var limit = parseInt(request.queryParams.limit || 15);
+
+    if (!query || query.trim().length < 2) {
+        response.setStatus(400);
+        response.setBody({ error: 'Query must be at least 2 characters.' });
+        return;
+    }
+
+    try {
+        var indexer  = new x_snc_demo_scope_0.TrustSearchIndexer();
+        var reRanker = new x_snc_demo_scope_0.TrustReRanker();
+        var tracker  = new x_snc_demo_scope_0.TrustBehaviorTracker();
+
+        var raw = indexer.searchRaw(query, limit * 2);
+        var ranked = reRanker.reRank(raw);
+        var top = ranked.slice(0, limit);
+
+        var sysIds = [];
+        for (var i = 0; i < top.length; i++) {
+            sysIds.push(top[i].sys_id);
+        }
+        tracker.recordImpression(query, sysIds);
+
+        response.setStatus(200);
+        response.setBody({
+            query: query,
+            total: top.length,
+            results: top
+        });
+    } catch(e) {
+        response.setStatus(500);
+        response.setBody({ error: e.message });
+    }
+
+})(request, response);]]></operation_script>
+        <produces>application/json</produces>
+        <produces_customized>false</produces_customized>
+        <relative_path>/search</relative_path>
+        <request_example/>
+        <response_example/>
+        <security_profiles/>
+        <web_service_definition display_value="Trust Search API">cc000001000000000000000000000001</web_service_definition>
+        <sys_class_name>sys_ws_operation</sys_class_name>
+        <sys_created_by>saiteja</sys_created_by>
+        <sys_created_on>2026-02-27 16:04:00</sys_created_on>
+        <sys_id>cc000002000000000000000000000002</sys_id>
+        <sys_mod_count>0</sys_mod_count>
+        <sys_name>search</sys_name>
+        <sys_package display_value="Demo scoped app" source="x_snc_demo_scope_0">17bf2bbd939bf290c349f34d9903d625</sys_package>
+        <sys_policy/>
+        <sys_scope display_value="Demo scoped app">17bf2bbd939bf290c349f34d9903d625</sys_scope>
+        <sys_update_name>sys_ws_operation_search</sys_update_name>
+        <sys_updated_by>saiteja</sys_updated_by>
+        <sys_updated_on>2026-02-27 16:04:00</sys_updated_on>
+    </sys_ws_operation>
+    <sys_translated_text action="delete_multiple" query="documentkey=cc000002000000000000000000000002"/>
+</record_update>

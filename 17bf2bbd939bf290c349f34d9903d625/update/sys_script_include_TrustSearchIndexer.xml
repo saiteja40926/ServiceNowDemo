@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update table="sys_script_include">
+    <sys_script_include action="INSERT_OR_UPDATE">
+        <access>public</access>
+        <active>true</active>
+        <api_name>x_snc_demo_scope_0.TrustSearchIndexer</api_name>
+        <caller_access/>
+        <client_callable>false</client_callable>
+        <description>Indexes ServiceNow records using TF-IDF and manages the search index table. Supports KB articles, incidents, catalog items, and custom records.</description>
+        <name>TrustSearchIndexer</name>
+        <script><![CDATA[var TrustSearchIndexer = Class.create();
+TrustSearchIndexer.prototype = {
+    initialize: function() {
+        this.STOP_WORDS = {
+            'a':1,'an':1,'and':1,'are':1,'as':1,'at':1,'be':1,'been':1,'but':1,
+            'by':1,'do':1,'for':1,'from':1,'has':1,'have':1,'he':1,'her':1,
+            'his':1,'how':1,'i':1,'if':1,'in':1,'is':1,'it':1,'its':1,'me':1,
+            'my':1,'no':1,'not':1,'of':1,'on':1,'or':1,'our':1,'she':1,'so':1,
+            'than':1,'that':1,'the':1,'their':1,'them':1,'then':1,'there':1,
+            'they':1,'this':1,'to':1,'up':1,'us':1,'was':1,'we':1,'were':1,
+            'what':1,'when':1,'where':1,'which':1,'who':1,'will':1,'with':1,
+            'you':1,'your':1
+        };
+    },
+
+    tokenize: function(text) {
+        if (!text) return [];
+        var words = text.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/);
+        var tokens = [];
+        for (var i = 0; i < words.length; i++) {
+            var w = words[i];
+            if (w.length > 2 && !this.STOP_WORDS[w]) {
+                tokens.push(w);
+            }
+        }
+        return tokens;
+    },
+
+    computeTF: function(tokens) {
+        var freq = {};
+        for (var i = 0; i < tokens.length; i++) {
+            freq[tokens[i]] = (freq[tokens[i]] || 0) + 1;
+        }
+        var tf = {};
+        var total = tokens.length || 1;
+        for (var term in freq) {
+            tf[term] = freq[term] / total;
+        }
+        return tf;
+    },
+
+    indexRecord: function(tableName, sysId, title, body, category, url) {
+        var tokens = this.tokenize(title + ' ' + title + ' ' + body);
+        var tf = this.computeTF(tokens);
+        var tfJson = JSON.stringify(tf);
+
+        var gr = new GlideRecord('x_snc_demo_scope_0_search_index');
+        gr.addQuery('source_table', tableName);
+        gr.addQuery('source_sys_id', sysId);
+        gr.query();
+
+        if (gr.next()) {
+            gr.title = title;
+            gr.body_snippet = body.substring(0, 500);
+            gr.tf_vector = tfJson;
+            gr.category = category || '';
+            gr.source_url = url || '';
+            gr.update();
+        } else {
+            gr.initialize();
+            gr.source_table = tableName;
+            gr.source_sys_id = sysId;
+            gr.title = title;
+            gr.body_snippet = body.substring(0, 500);
+            gr.tf_vector = tfJson;
+            gr.category = category || '';
+            gr.source_url = url || '';
+            gr.trust_score = 0.5;
+            gr.click_count = 0;
+            gr.impression_count = 0;
+            gr.avg_dwell_seconds = 0;
+            gr.bounce_count = 0;
+            gr.insert();
+        }
+    },
+
+    bulkIndexTable: function(tableName, titleField, bodyField, categoryValue, limit) {
+        var lim = limit || 100;
+        var gr = new GlideRecord(tableName);
+        gr.setLimit(lim);
+        gr.query();
+        var count = 0;
+        while (gr.next()) {
+            var title = gr.getValue(titleField) || '';
+            var body = gr.getValue(bodyField) || '';
+            var url = '/' + tableName + '.do?sys_id=' + gr.sys_id;
+            this.indexRecord(tableName, gr.sys_id.toString(), title, body, categoryValue, url);
+            count++;
+        }
+        return count;
+    },
+
+    searchRaw: function(query, limit) {
+        var lim = limit || 20;
+        var queryTokens = this.tokenize(query);
+        if (queryTokens.length === 0) return [];
+
+        var gr = new GlideRecord('x_snc_demo_scope_0_search_index');
+        gr.query();
+
+        var scored = [];
+        while (gr.next()) {
+            var tfRaw = gr.getValue('tf_vector');
+            if (!tfRaw) continue;
+            var tf;
+            try { tf = JSON.parse(tfRaw); } catch(e) { continue; }
+
+            var score = 0;
+            for (var i = 0; i < queryTokens.length; i++) {
+                score += (tf[queryTokens[i]] || 0);
+            }
+
+            if (score > 0) {
+                scored.push({
+                    sys_id: gr.sys_id.toString(),
+                    source_table: gr.getValue('source_table'),
+                    source_sys_id: gr.getValue('source_sys_id'),
+                    title: gr.getValue('title'),
+                    body_snippet: gr.getValue('body_snippet'),
+                    category: gr.getValue('category'),
+                    source_url: gr.getValue('source_url'),
+                    trust_score: parseFloat(gr.getValue('trust_score') || 0.5),
+                    click_count: parseInt(gr.getValue('click_count') || 0),
+                    impression_count: parseInt(gr.getValue('impression_count') || 0),
+                    avg_dwell_seconds: parseFloat(gr.getValue('avg_dwell_seconds') || 0),
+                    bounce_count: parseInt(gr.getValue('bounce_count') || 0),
+                    tfidf_score: score
+                });
+            }
+        }
+
+        scored.sort(function(a, b) { return b.tfidf_score - a.tfidf_score; });
+        return scored.slice(0, lim);
+    },
+
+    type: 'TrustSearchIndexer'
+};]]></script>
+        <sys_class_name>sys_script_include</sys_class_name>
+        <sys_created_by>saiteja</sys_created_by>
+        <sys_created_on>2026-02-27 16:00:00</sys_created_on>
+        <sys_id>bb000001000000000000000000000001</sys_id>
+        <sys_mod_count>0</sys_mod_count>
+        <sys_name>TrustSearchIndexer</sys_name>
+        <sys_package display_value="Demo scoped app" source="x_snc_demo_scope_0">17bf2bbd939bf290c349f34d9903d625</sys_package>
+        <sys_policy/>
+        <sys_scope display_value="Demo scoped app">17bf2bbd939bf290c349f34d9903d625</sys_scope>
+        <sys_update_name>sys_script_include_TrustSearchIndexer</sys_update_name>
+        <sys_updated_by>saiteja</sys_updated_by>
+        <sys_updated_on>2026-02-27 16:00:00</sys_updated_on>
+    </sys_script_include>
+    <sys_translated_text action="delete_multiple" query="documentkey=bb000001000000000000000000000001"/>
+</record_update>

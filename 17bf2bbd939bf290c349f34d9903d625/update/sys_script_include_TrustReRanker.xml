@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update table="sys_script_include">
+    <sys_script_include action="INSERT_OR_UPDATE">
+        <access>public</access>
+        <active>true</active>
+        <api_name>x_snc_demo_scope_0.TrustReRanker</api_name>
+        <caller_access/>
+        <client_callable>false</client_callable>
+        <description>Re-ranks raw TF-IDF search results using behavioral trust signals. Computes a composite trust score from CTR, dwell time, bounce rate, and recency, then blends it with TF-IDF relevance.</description>
+        <name>TrustReRanker</name>
+        <script><![CDATA[var TrustReRanker = Class.create();
+TrustReRanker.prototype = {
+    initialize: function() {
+        this.TFIDF_WEIGHT   = 0.40;
+        this.CTR_WEIGHT     = 0.25;
+        this.DWELL_WEIGHT   = 0.20;
+        this.BOUNCE_WEIGHT  = 0.10;
+        this.STORED_WEIGHT  = 0.05;
+
+        this.DWELL_GOOD_THRESHOLD  = 30;
+        this.DWELL_GREAT_THRESHOLD = 120;
+        this.MIN_IMPRESSIONS_FOR_CTR = 3;
+    },
+
+    computeCTRScore: function(clicks, impressions) {
+        if (impressions < this.MIN_IMPRESSIONS_FOR_CTR) return 0.5;
+        var ctr = clicks / impressions;
+        return Math.min(ctr * 5, 1.0);
+    },
+
+    computeDwellScore: function(avgDwellSeconds, clicks) {
+        if (clicks < 2) return 0.5;
+        if (avgDwellSeconds >= this.DWELL_GREAT_THRESHOLD) return 1.0;
+        if (avgDwellSeconds >= this.DWELL_GOOD_THRESHOLD)  return 0.75;
+        if (avgDwellSeconds >= 10) return 0.5;
+        return 0.2;
+    },
+
+    computeBounceScore: function(bounces, clicks) {
+        if (clicks < 2) return 0.5;
+        var bounceRate = bounces / clicks;
+        return 1.0 - bounceRate;
+    },
+
+    computeNewTrustScore: function(result) {
+        var ctrScore    = this.computeCTRScore(result.click_count, result.impression_count);
+        var dwellScore  = this.computeDwellScore(result.avg_dwell_seconds, result.click_count);
+        var bounceScore = this.computeBounceScore(result.bounce_count, result.click_count);
+
+        var newTrust = (
+            ctrScore   * this.CTR_WEIGHT +
+            dwellScore * this.DWELL_WEIGHT +
+            bounceScore * this.BOUNCE_WEIGHT +
+            (result.trust_score || 0.5) * this.STORED_WEIGHT
+        ) / (this.CTR_WEIGHT + this.DWELL_WEIGHT + this.BOUNCE_WEIGHT + this.STORED_WEIGHT);
+
+        return Math.min(Math.max(newTrust, 0), 1);
+    },
+
+    normalizeTFIDF: function(results) {
+        if (!results || results.length === 0) return results;
+        var max = 0;
+        for (var i = 0; i < results.length; i++) {
+            if (results[i].tfidf_score > max) max = results[i].tfidf_score;
+        }
+        if (max === 0) return results;
+        for (var j = 0; j < results.length; j++) {
+            results[j].tfidf_norm = results[j].tfidf_score / max;
+        }
+        return results;
+    },
+
+    reRank: function(rawResults) {
+        if (!rawResults || rawResults.length === 0) return [];
+        rawResults = this.normalizeTFIDF(rawResults);
+
+        var self = this;
+        for (var i = 0; i < rawResults.length; i++) {
+            var r = rawResults[i];
+            var trustScore = self.computeNewTrustScore(r);
+            r.computed_trust = trustScore;
+            r.final_score = (r.tfidf_norm * self.TFIDF_WEIGHT) + (trustScore * (1 - self.TFIDF_WEIGHT));
+            r.trust_label = self._trustLabel(trustScore);
+            r.trust_signals = {
+                ctr: self.computeCTRScore(r.click_count, r.impression_count),
+                dwell: self.computeDwellScore(r.avg_dwell_seconds, r.click_count),
+                bounce: self.computeBounceScore(r.bounce_count, r.click_count),
+                impressions: r.impression_count,
+                clicks: r.click_count,
+                avg_dwell_seconds: r.avg_dwell_seconds
+            };
+        }
+
+        rawResults.sort(function(a, b) { return b.final_score - a.final_score; });
+
+        self._persistTrustScores(rawResults);
+
+        return rawResults;
+    },
+
+    _trustLabel: function(score) {
+        if (score >= 0.80) return 'high';
+        if (score >= 0.55) return 'medium';
+        return 'low';
+    },
+
+    _persistTrustScores: function(results) {
+        for (var i = 0; i < results.length; i++) {
+            var r = results[i];
+            var gr = new GlideRecord('x_snc_demo_scope_0_search_index');
+            if (gr.get(r.sys_id)) {
+                gr.trust_score = r.computed_trust;
+                gr.update();
+            }
+        }
+    },
+
+    type: 'TrustReRanker'
+};]]></script>
+        <sys_class_name>sys_script_include</sys_class_name>
+        <sys_created_by>saiteja</sys_created_by>
+        <sys_created_on>2026-02-27 16:02:00</sys_created_on>
+        <sys_id>bb000003000000000000000000000003</sys_id>
+        <sys_mod_count>0</sys_mod_count>
+        <sys_name>TrustReRanker</sys_name>
+        <sys_package display_value="Demo scoped app" source="x_snc_demo_scope_0">17bf2bbd939bf290c349f34d9903d625</sys_package>
+        <sys_policy/>
+        <sys_scope display_value="Demo scoped app">17bf2bbd939bf290c349f34d9903d625</sys_scope>
+        <sys_update_name>sys_script_include_TrustReRanker</sys_update_name>
+        <sys_updated_by>saiteja</sys_updated_by>
+        <sys_updated_on>2026-02-27 16:02:00</sys_updated_on>
+    </sys_script_include>
+    <sys_translated_text action="delete_multiple" query="documentkey=bb000003000000000000000000000003"/>
+</record_update>

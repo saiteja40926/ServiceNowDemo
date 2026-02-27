@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update table="sys_script_include">
+    <sys_script_include action="INSERT_OR_UPDATE">
+        <access>public</access>
+        <active>true</active>
+        <api_name>x_snc_demo_scope_0.TrustBehaviorTracker</api_name>
+        <caller_access/>
+        <client_callable>false</client_callable>
+        <description>Records user behavior events (clicks, dwell time, bounces) against search results and updates raw counters on the search index records.</description>
+        <name>TrustBehaviorTracker</name>
+        <script><![CDATA[var TrustBehaviorTracker = Class.create();
+TrustBehaviorTracker.prototype = {
+    initialize: function() {},
+
+    recordImpression: function(query, resultSysIds) {
+        if (!resultSysIds || resultSysIds.length === 0) return;
+        for (var i = 0; i < resultSysIds.length; i++) {
+            var gr = new GlideRecord('x_snc_demo_scope_0_search_index');
+            if (gr.get(resultSysIds[i])) {
+                var current = parseInt(gr.getValue('impression_count') || 0);
+                gr.impression_count = current + 1;
+                gr.update();
+            }
+        }
+        this._logEvent('impression', query, resultSysIds.join(','), 0, '');
+    },
+
+    recordClick: function(query, indexSysId, rankPosition) {
+        var gr = new GlideRecord('x_snc_demo_scope_0_search_index');
+        if (gr.get(indexSysId)) {
+            gr.click_count = parseInt(gr.getValue('click_count') || 0) + 1;
+            gr.update();
+        }
+        this._logEvent('click', query, indexSysId, rankPosition, '');
+    },
+
+    recordDwell: function(query, indexSysId, dwellSeconds) {
+        var gr = new GlideRecord('x_snc_demo_scope_0_search_index');
+        if (gr.get(indexSysId)) {
+            var prevAvg = parseFloat(gr.getValue('avg_dwell_seconds') || 0);
+            var clicks = parseInt(gr.getValue('click_count') || 1);
+            var newAvg = ((prevAvg * (clicks - 1)) + dwellSeconds) / clicks;
+            gr.avg_dwell_seconds = newAvg;
+            gr.update();
+        }
+        this._logEvent('dwell', query, indexSysId, dwellSeconds, '');
+    },
+
+    recordBounce: function(query, indexSysId) {
+        var gr = new GlideRecord('x_snc_demo_scope_0_search_index');
+        if (gr.get(indexSysId)) {
+            gr.bounce_count = parseInt(gr.getValue('bounce_count') || 0) + 1;
+            gr.update();
+        }
+        this._logEvent('bounce', query, indexSysId, 0, '');
+    },
+
+    _logEvent: function(eventType, query, indexSysId, numericValue, extra) {
+        var ev = new GlideRecord('x_snc_demo_scope_0_search_behavior');
+        ev.initialize();
+        ev.event_type = eventType;
+        ev.search_query = query.substring(0, 200);
+        ev.index_record = indexSysId;
+        ev.numeric_value = numericValue;
+        ev.user_id = gs.getUserID();
+        ev.session_id = gs.getSessionID ? gs.getSessionID() : '';
+        ev.extra_data = extra || '';
+        ev.insert();
+    },
+
+    type: 'TrustBehaviorTracker'
+};]]></script>
+        <sys_class_name>sys_script_include</sys_class_name>
+        <sys_created_by>saiteja</sys_created_by>
+        <sys_created_on>2026-02-27 16:01:00</sys_created_on>
+        <sys_id>bb000002000000000000000000000002</sys_id>
+        <sys_mod_count>0</sys_mod_count>
+        <sys_name>TrustBehaviorTracker</sys_name>
+        <sys_package display_value="Demo scoped app" source="x_snc_demo_scope_0">17bf2bbd939bf290c349f34d9903d625</sys_package>
+        <sys_policy/>
+        <sys_scope display_value="Demo scoped app">17bf2bbd939bf290c349f34d9903d625</sys_scope>
+        <sys_update_name>sys_script_include_TrustBehaviorTracker</sys_update_name>
+        <sys_updated_by>saiteja</sys_updated_by>
+        <sys_updated_on>2026-02-27 16:01:00</sys_updated_on>
+    </sys_script_include>
+    <sys_translated_text action="delete_multiple" query="documentkey=bb000002000000000000000000000002"/>
+</record_update>
