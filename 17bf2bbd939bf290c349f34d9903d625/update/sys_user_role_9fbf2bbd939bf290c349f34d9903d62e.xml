@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update table="sys_user_role">
+    <sys_user_role action="INSERT_OR_UPDATE">
+        <assignable_by/>
+        <can_delegate>true</can_delegate>
+        <description>Default admin role</description>
+        <elevated_privilege>false</elevated_privilege>
+        <federated_id>yX4b7qfMm4gVCRPPfbRZYFGGOybEMNUj+o0fpsUeSAE=</federated_id>
+        <grantable>true</grantable>
+        <includes_roles/>
+        <name>x_snc_demo_scope_0.admin</name>
+        <scoped_admin>false</scoped_admin>
+        <suffix>admin</suffix>
+        <sys_class_name>sys_user_role</sys_class_name>
+        <sys_created_by>saiteja</sys_created_by>
+        <sys_created_on>2026-02-27 10:22:00</sys_created_on>
+        <sys_id>9fbf2bbd939bf290c349f34d9903d62e</sys_id>
+        <sys_mod_count>0</sys_mod_count>
+        <sys_name>x_snc_demo_scope_0.admin</sys_name>
+        <sys_package display_value="Demo scoped app" source="x_snc_demo_scope_0">17bf2bbd939bf290c349f34d9903d625</sys_package>
+        <sys_policy/>
+        <sys_scope display_value="Demo scoped app">17bf2bbd939bf290c349f34d9903d625</sys_scope>
+        <sys_update_name>sys_user_role_9fbf2bbd939bf290c349f34d9903d62e</sys_update_name>
+        <sys_updated_by>saiteja</sys_updated_by>
+        <sys_updated_on>2026-02-27 10:22:00</sys_updated_on>
+    </sys_user_role>
+</record_update>
