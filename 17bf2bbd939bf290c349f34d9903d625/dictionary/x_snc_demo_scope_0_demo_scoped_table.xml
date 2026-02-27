@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?><database>
+    <element db_object_id="c7cfabbd939bf290c349f34d9903d66f" label="Demo scoped table" max_length="40" name="x_snc_demo_scope_0_demo_scoped_table" type="collection">
+        <element label="Description" max_length="40" name="description" type="string"/>
+    </element>
+</database>
