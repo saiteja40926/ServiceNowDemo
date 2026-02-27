@@ -109,6 +109,23 @@
         return icons[(category || '').toLowerCase()] || '📄';
     };
 
+    c.roundPct = function(val) {
+        return Math.round((val || 0) * 100);
+    };
+
+    c.formatScore = function(val) {
+        return ((val || 0) * 100).toFixed(1);
+    };
+
+    c.getSnippet = function(snippet) {
+        if (!snippet) return '';
+        return snippet.length > 200 ? snippet.substring(0, 200) + '...' : snippet;
+    };
+
+    c.roundVal = function(val) {
+        return Math.round(val || 0);
+    };
+
     function _sendDwell(indexSysId, seconds) {
         $http({
             method: 'POST',
@@ -504,7 +521,7 @@
         </div>
 
         <div class="ts-result-snippet" ng-if="r.body_snippet">
-          {{r.body_snippet.substring(0, 200)}}{{r.body_snippet.length > 200 ? '...' : ''}}
+          {{c.getSnippet(r.body_snippet)}}
         </div>
 
         <div class="ts-trust-panel">
@@ -516,7 +533,7 @@
               <div class="ts-bar-track">
                 <div class="ts-bar-fill" ng-style="{width: c.getBarWidth(r.trust_signals.ctr), 'background-color': '#6366f1'}"></div>
               </div>
-              <span class="ts-bar-val">{{Math.round(r.trust_signals.ctr * 100)}}%</span>
+              <span class="ts-bar-val">{{c.roundPct(r.trust_signals.ctr)}}%</span>
             </div>
 
             <div class="ts-bar-row">
@@ -524,7 +541,7 @@
               <div class="ts-bar-track">
                 <div class="ts-bar-fill" ng-style="{width: c.getBarWidth(r.trust_signals.dwell), 'background-color': '#10b981'}"></div>
               </div>
-              <span class="ts-bar-val">{{Math.round(r.trust_signals.dwell * 100)}}%</span>
+              <span class="ts-bar-val">{{c.roundPct(r.trust_signals.dwell)}}%</span>
             </div>
 
             <div class="ts-bar-row">
@@ -532,7 +549,7 @@
               <div class="ts-bar-track">
                 <div class="ts-bar-fill" ng-style="{width: c.getBarWidth(r.trust_signals.bounce), 'background-color': '#f59e0b'}"></div>
               </div>
-              <span class="ts-bar-val">{{Math.round(r.trust_signals.bounce * 100)}}%</span>
+              <span class="ts-bar-val">{{c.roundPct(r.trust_signals.bounce)}}%</span>
             </div>
 
           </div>
@@ -541,9 +558,9 @@
         <div class="ts-meta-row">
           <span class="ts-meta-item"><strong>Clicks:</strong> {{r.trust_signals.clicks}}</span>
           <span class="ts-meta-item"><strong>Impressions:</strong> {{r.trust_signals.impressions}}</span>
-          <span class="ts-meta-item"><strong>Avg dwell:</strong> {{Math.round(r.trust_signals.avg_dwell_seconds)}}s</span>
+          <span class="ts-meta-item"><strong>Avg dwell:</strong> {{c.roundVal(r.trust_signals.avg_dwell_seconds)}}s</span>
           <span class="ts-meta-item"><strong>Category:</strong> {{r.category || 'General'}}</span>
-          <span class="ts-meta-item"><strong>Score:</strong> {{(r.final_score * 100).toFixed(1)}}</span>
+          <span class="ts-meta-item"><strong>Score:</strong> {{c.formatScore(r.final_score)}}</span>
         </div>
 
       </li>
