@@ -29,7 +29,24 @@
         <role_conditions/>
         <script><![CDATA[(function executeRule(current, previous /*null when async*/) {
 
-	// Add your code here
+	// Calculate the date 5 days ago from now
+	var cutoffDate = new GlideDateTime();
+	cutoffDate.addDaysUTC(-5);
+
+	// Query Demo Scoped Table for records updated in the last 5 days
+	var gr = new GlideRecord('x_snc_demo_scope_0_demo_scoped_table');
+	gr.addQuery('sys_updated_on', '>=', cutoffDate.getValue());
+	gr.orderByDesc('sys_updated_on');
+	gr.query();
+
+	gs.log('Records updated in the last 5 days in Demo Scoped Table:');
+	while (gr.next()) {
+		gs.log('SysID: ' + gr.sys_id +
+			' | Name: ' + gr.getDisplayValue() +
+			' | Updated: ' + gr.getValue('sys_updated_on') +
+			' | Updated By: ' + gr.getValue('sys_updated_by'));
+	}
+	gs.log('Total records found: ' + gr.getRowCount());
 
 })(current, previous);]]></script>
         <sys_class_name>sys_script</sys_class_name>
@@ -38,7 +55,7 @@
         <sys_domain>global</sys_domain>
         <sys_domain_path>/</sys_domain_path>
         <sys_id>47fe33b9931ff290c349f34d9903d69d</sys_id>
-        <sys_mod_count>0</sys_mod_count>
+        <sys_mod_count>1</sys_mod_count>
         <sys_name>New Demo BR</sys_name>
         <sys_overrides/>
         <sys_package display_value="Demo scoped app" source="x_snc_demo_scope_0">17bf2bbd939bf290c349f34d9903d625</sys_package>
@@ -46,7 +63,7 @@
         <sys_scope display_value="Demo scoped app">17bf2bbd939bf290c349f34d9903d625</sys_scope>
         <sys_update_name>sys_script_47fe33b9931ff290c349f34d9903d69d</sys_update_name>
         <sys_updated_by>saiteja</sys_updated_by>
-        <sys_updated_on>2026-02-27 11:29:29</sys_updated_on>
+        <sys_updated_on>2026-02-27 11:43:55</sys_updated_on>
         <template/>
         <when>after</when>
     </sys_script>
