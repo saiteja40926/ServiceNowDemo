@@ -47,6 +47,7 @@
 			' | Updated By: ' + gr.getValue('sys_updated_by'));
 	}
 	gs.log('Total records found: ' + gr.getRowCount());
+	gs.log('Business Rule execution completed');
 
 })(current, previous);]]></script>
         <sys_class_name>sys_script</sys_class_name>
