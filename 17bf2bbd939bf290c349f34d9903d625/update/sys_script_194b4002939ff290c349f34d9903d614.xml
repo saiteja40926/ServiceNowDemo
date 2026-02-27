@@ -29,7 +29,7 @@
         <role_conditions/>
         <script><![CDATA[(function executeRule(current, previous /*null when async*/) {
 
-	// Add your code here
+	gs.log('Business Rule is executed');
 
 })(current, previous);]]></script>
         <sys_class_name>sys_script</sys_class_name>
