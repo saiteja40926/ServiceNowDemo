@@ -6,7 +6,9 @@
         <caller_access/>
         <client_callable>false</client_callable>
         <description>Admin utility for bulk-indexing ServiceNow records into the Trust Search index. Run seedDefaultTables() in a background script to populate the index with KB articles, incidents, and catalog items.</description>
+        <mobile_callable>false</mobile_callable>
         <name>TrustSearchAdmin</name>
+        <sandbox_callable>false</sandbox_callable>
         <script><![CDATA[var TrustSearchAdmin = Class.create();
 TrustSearchAdmin.prototype = {
     initialize: function() {
@@ -178,5 +180,4 @@ TrustSearchAdmin.prototype = {
         <sys_updated_by>saiteja</sys_updated_by>
         <sys_updated_on>2026-02-27 16:12:00</sys_updated_on>
     </sys_script_include>
-    <sys_translated_text action="delete_multiple" query="documentkey=bb000004000000000000000000000004"/>
 </record_update>

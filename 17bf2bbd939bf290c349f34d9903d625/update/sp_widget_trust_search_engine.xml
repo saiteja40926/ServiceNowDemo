@@ -100,13 +100,13 @@
 
     c.getCategoryIcon = function(category) {
         var icons = {
-            'kb':       '📖',
-            'incident': '🔥',
-            'catalog':  '🛍',
+            'kb':       ']]>📖<![CDATA[',
+            'incident': ']]>🔥<![CDATA[',
+            'catalog':  ']]>🛍<![CDATA[',
             'problem':  '⚠',
-            'change':   '🔄'
+            'change':   ']]>🔄<![CDATA['
         };
-        return icons[(category || '').toLowerCase()] || '📄';
+        return icons[(category || '').toLowerCase()] || ']]>📄<![CDATA[';
     };
 
     c.roundPct = function(val) {
@@ -159,7 +159,8 @@
         clickTimes  = {};
     }
 }]]></client_script>
-        <css><![CDATA[.ts-wrapper {
+        <controller_as/>
+        <css>.ts-wrapper {
   font-family: 'Helvetica Neue', Arial, sans-serif;
   max-width: 860px;
   margin: 40px auto;
@@ -429,7 +430,9 @@
 
 .ts-results-header strong {
   color: #1e293b;
-}]]></css>
+}</css>
+        <data_table/>
+        <demo_data/>
         <description>Trust-aware search engine widget for Service Portal. Uses TF-IDF indexing, behavioral signals (CTR, dwell time, bounce rate), and automatic re-ranking to surface the most trustworthy results.</description>
         <docs/>
         <field_list/>
@@ -461,7 +464,7 @@
         <sys_updated_on>2026-02-27 16:06:00</sys_updated_on>
         <template><![CDATA[<div class="ts-wrapper">
   <div class="ts-header">
-    <h1>🔍 Trust Search</h1>
+    <h1>]]>🔍<![CDATA[ Trust Search</h1>
     <p>Results are re-ranked automatically based on what people actually find useful</p>
   </div>
 
@@ -487,7 +490,7 @@
   </div>
 
   <div ng-if="!c.loading && c.searched && c.results.length === 0 && !c.error" class="ts-empty">
-    <span class="ts-empty-icon">🔎</span>
+    <span class="ts-empty-icon">]]>🔎<![CDATA[</span>
     <strong>No results found</strong>
     <p>Try different keywords, or ask your admin to index more records.</p>
   </div>
@@ -568,10 +571,9 @@
   </div>
 
   <div ng-if="!c.searched" class="ts-empty">
-    <span class="ts-empty-icon">💡</span>
+    <span class="ts-empty-icon">]]>💡<![CDATA[</span>
     <p>Start typing to search. Results learn from user behavior over time.</p>
   </div>
 </div>]]></template>
     </sp_widget>
-    <sys_translated_text action="delete_multiple" query="documentkey=dd000001000000000000000000000001"/>
 </record_update>

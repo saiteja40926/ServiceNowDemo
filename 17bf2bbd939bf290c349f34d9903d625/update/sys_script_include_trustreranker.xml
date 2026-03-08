@@ -6,7 +6,9 @@
         <caller_access/>
         <client_callable>false</client_callable>
         <description>Re-ranks raw TF-IDF search results using behavioral trust signals. Computes a composite trust score from CTR, dwell time, bounce rate, and recency, then blends it with TF-IDF relevance.</description>
+        <mobile_callable>false</mobile_callable>
         <name>TrustReRanker</name>
+        <sandbox_callable>false</sandbox_callable>
         <script><![CDATA[var TrustReRanker = Class.create();
 TrustReRanker.prototype = {
     initialize: function() {
@@ -129,5 +131,4 @@ TrustReRanker.prototype = {
         <sys_updated_by>saiteja</sys_updated_by>
         <sys_updated_on>2026-02-27 16:02:00</sys_updated_on>
     </sys_script_include>
-    <sys_translated_text action="delete_multiple" query="documentkey=bb000003000000000000000000000003"/>
 </record_update>

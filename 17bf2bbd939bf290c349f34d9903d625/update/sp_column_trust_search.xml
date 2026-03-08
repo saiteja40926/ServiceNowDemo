@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?><record_update table="sp_column">
     <sp_column action="INSERT_OR_UPDATE">
-        <color/>
+        <class_name/>
         <order>10</order>
-        <row display_value="trust_search_row">ff000002000000000000000000000002</row>
+        <semantic_tag/>
+        <size/>
         <size_lg>12</size_lg>
-        <size_md>12</size_md>
         <size_sm>12</size_sm>
         <size_xs>12</size_xs>
-        <sp_log/>
+        <sp_row/>
         <sys_class_name>sp_column</sys_class_name>
         <sys_created_by>saiteja</sys_created_by>
         <sys_created_on>2026-02-27 16:10:00</sys_created_on>

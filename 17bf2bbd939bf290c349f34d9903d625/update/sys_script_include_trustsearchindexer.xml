@@ -6,7 +6,9 @@
         <caller_access/>
         <client_callable>false</client_callable>
         <description>Indexes ServiceNow records using TF-IDF and manages the search index table. Supports KB articles, incidents, catalog items, and custom records.</description>
+        <mobile_callable>false</mobile_callable>
         <name>TrustSearchIndexer</name>
+        <sandbox_callable>false</sandbox_callable>
         <script><![CDATA[var TrustSearchIndexer = Class.create();
 TrustSearchIndexer.prototype = {
     initialize: function() {
@@ -157,5 +159,4 @@ TrustSearchIndexer.prototype = {
         <sys_updated_by>saiteja</sys_updated_by>
         <sys_updated_on>2026-02-27 16:00:00</sys_updated_on>
     </sys_script_include>
-    <sys_translated_text action="delete_multiple" query="documentkey=bb000001000000000000000000000001"/>
 </record_update>

@@ -1,12 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?><record_update table="sp_container">
     <sp_container action="INSERT_OR_UPDATE">
         <background_color/>
+        <background_image/>
+        <background_style/>
         <bootstrap_alt>false</bootstrap_alt>
-        <color/>
-        <layout>12</layout>
+        <class_name/>
+        <container_class_name/>
+        <name/>
         <order>10</order>
-        <page display_value="trust_search">ee000001000000000000000000000001</page>
-        <sp_log/>
+        <semantic_tag/>
+        <sp_page/>
+        <subheader>false</subheader>
         <sys_class_name>sp_container</sys_class_name>
         <sys_created_by>saiteja</sys_created_by>
         <sys_created_on>2026-02-27 16:08:00</sys_created_on>
@@ -19,6 +23,7 @@
         <sys_update_name>sp_container_trust_search</sys_update_name>
         <sys_updated_by>saiteja</sys_updated_by>
         <sys_updated_on>2026-02-27 16:08:00</sys_updated_on>
+        <title/>
         <width>full</width>
     </sp_container>
 </record_update>

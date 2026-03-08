@@ -3,6 +3,8 @@
         <active>true</active>
         <consumes>application/json</consumes>
         <consumes_customized>false</consumes_customized>
+        <default_operation_uri/>
+        <enforce_acl/>
         <http_method>GET</http_method>
         <name>search</name>
         <operation_script><![CDATA[(function process(/*RESTAPIRequest*/ request, /*RESTAPIResponse*/ response) {
@@ -42,13 +44,15 @@
     }
 
 })(request, response);]]></operation_script>
+        <operation_uri>/api/search</operation_uri>
         <produces>application/json</produces>
         <produces_customized>false</produces_customized>
         <relative_path>/search</relative_path>
         <request_example/>
-        <response_example/>
-        <security_profiles/>
-        <web_service_definition display_value="Trust Search API">cc000001000000000000000000000001</web_service_definition>
+        <requires_acl_authorization>false</requires_acl_authorization>
+        <requires_authentication>false</requires_authentication>
+        <requires_snc_internal_role>false</requires_snc_internal_role>
+        <short_description/>
         <sys_class_name>sys_ws_operation</sys_class_name>
         <sys_created_by>saiteja</sys_created_by>
         <sys_created_on>2026-02-27 16:04:00</sys_created_on>
@@ -61,6 +65,7 @@
         <sys_update_name>sys_ws_operation_search</sys_update_name>
         <sys_updated_by>saiteja</sys_updated_by>
         <sys_updated_on>2026-02-27 16:04:00</sys_updated_on>
+        <web_service_definition display_value="Trust Search API">cc000001000000000000000000000001</web_service_definition>
+        <web_service_version/>
     </sys_ws_operation>
-    <sys_translated_text action="delete_multiple" query="documentkey=cc000002000000000000000000000002"/>
 </record_update>

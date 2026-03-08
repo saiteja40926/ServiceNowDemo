@@ -1,20 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?><record_update table="sp_page">
     <sp_page action="INSERT_OR_UPDATE">
-        <acls/>
         <category>general</category>
-        <css><![CDATA[body {
+        <css>body {
   background: #f8fafc;
-}]]></css>
-        <description>Trust Search Engine page — AI-free, behavior-driven search with automatic re-ranking and trust signals</description>
+}</css>
         <draft>false</draft>
+        <dynamic_title_structure/>
+        <human_readable_url_structure/>
         <id>trust_search</id>
         <internal>false</internal>
-        <login_page>false</login_page>
+        <omit_watcher>false</omit_watcher>
         <public>true</public>
         <roles/>
+        <seo_script/>
         <short_description>Trust Search</short_description>
-        <sp_log/>
-        <title>Trust Search Engine</title>
         <sys_class_name>sp_page</sys_class_name>
         <sys_created_by>saiteja</sys_created_by>
         <sys_created_on>2026-02-27 16:07:00</sys_created_on>
@@ -27,6 +26,8 @@
         <sys_update_name>sp_page_trust_search</sys_update_name>
         <sys_updated_by>saiteja</sys_updated_by>
         <sys_updated_on>2026-02-27 16:07:00</sys_updated_on>
+        <title>Trust Search Engine</title>
+        <use_seo_script>false</use_seo_script>
     </sp_page>
     <sys_translated_text action="delete_multiple" query="documentkey=ee000001000000000000000000000001"/>
 </record_update>

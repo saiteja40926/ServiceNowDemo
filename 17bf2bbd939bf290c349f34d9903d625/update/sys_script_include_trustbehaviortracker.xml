@@ -6,7 +6,9 @@
         <caller_access/>
         <client_callable>false</client_callable>
         <description>Records user behavior events (clicks, dwell time, bounces) against search results and updates raw counters on the search index records.</description>
+        <mobile_callable>false</mobile_callable>
         <name>TrustBehaviorTracker</name>
+        <sandbox_callable>false</sandbox_callable>
         <script><![CDATA[var TrustBehaviorTracker = Class.create();
 TrustBehaviorTracker.prototype = {
     initialize: function() {},
@@ -82,5 +84,4 @@ TrustBehaviorTracker.prototype = {
         <sys_updated_by>saiteja</sys_updated_by>
         <sys_updated_on>2026-02-27 16:01:00</sys_updated_on>
     </sys_script_include>
-    <sys_translated_text action="delete_multiple" query="documentkey=bb000002000000000000000000000002"/>
 </record_update>

@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?><record_update table="sp_row">
     <sp_row action="INSERT_OR_UPDATE">
-        <color/>
-        <container display_value="trust_search_container">ff000001000000000000000000000001</container>
+        <class_name/>
         <order>10</order>
-        <sp_log/>
+        <semantic_tag/>
+        <sp_column/>
+        <sp_container/>
         <sys_class_name>sp_row</sys_class_name>
         <sys_created_by>saiteja</sys_created_by>
         <sys_created_on>2026-02-27 16:09:00</sys_created_on>
