@@ -1,0 +1,33 @@
+<div class="sp-badge-widget" ng-controller="SearchPulseBadgeCtrl">
+
+  <!-- Badge display -->
+  <span
+    class="sp-inline-badge sp-badge-color-{{c.badge.color}}"
+    ng-if="c.badge && c.badge.show"
+    title="Reputation score: {{c.reputationScore}}"
+    aria-label="{{c.badge.label}}"
+  >
+    <i class="fa" ng-class="c.getIconClass()" aria-hidden="true"></i>
+    <span class="sp-badge-text">{{c.badge.label}}</span>
+
+    <!-- Trend arrow -->
+    <span
+      class="sp-trend-indicator"
+      ng-if="options.show_trend && c.trend !== 'stable'"
+      ng-class="{'sp-trend-up': c.trend === 'rising', 'sp-trend-down': c.trend === 'falling'}"
+      title="Score trend: {{c.trend}}"
+    >
+      <i class="fa" ng-class="c.trend === 'rising' ? 'fa-arrow-up' : 'fa-arrow-down'" aria-hidden="true"></i>
+    </span>
+
+    <!-- Numeric score (optional) -->
+    <span
+      class="sp-score-pill"
+      ng-if="options.show_score"
+    >{{c.reputationScore}}</span>
+  </span>
+
+  <!-- No badge: render nothing visible -->
+  <span class="sp-no-badge" ng-if="!c.badge || !c.badge.show" aria-hidden="true"></span>
+
+</div>

@@ -1,0 +1,318 @@
+// SearchPulse Search Widget Styles
+// Scope: x_sp_searchpulse
+
+.sp-searchpulse-widget {
+  font-family: inherit;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 0 16px;
+
+  // ── Search bar ─────────────────────────────────────────────────────────
+  .sp-search-bar {
+    margin-bottom: 20px;
+
+    .input-group {
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .sp-search-input {
+      height: 48px;
+      font-size: 16px;
+      border: 1px solid #dde1e7;
+      border-right: none;
+      padding: 10px 16px;
+
+      &:focus {
+        border-color: #0066cc;
+        box-shadow: none;
+        outline: none;
+      }
+    }
+
+    .input-group-addon {
+      background: #f8f9fa;
+      border: 1px solid #dde1e7;
+      border-right: none;
+      color: #6c757d;
+      font-size: 16px;
+    }
+
+    .sp-search-btn {
+      height: 48px;
+      padding: 0 24px;
+      font-size: 15px;
+      font-weight: 600;
+      background-color: #0066cc;
+      border-color: #0066cc;
+      border-radius: 0 6px 6px 0;
+      transition: background-color 0.2s ease;
+
+      &:hover:not(:disabled) {
+        background-color: #0052a3;
+        border-color: #0052a3;
+      }
+
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+    }
+  }
+
+  // ── Loading state ──────────────────────────────────────────────────────
+  .sp-loading {
+    padding: 40px 0;
+    color: #6c757d;
+
+    .sp-loading-text {
+      margin-top: 12px;
+      font-size: 14px;
+    }
+  }
+
+  // ── AI Summary panel ───────────────────────────────────────────────────
+  .sp-summary-panel {
+    background: linear-gradient(135deg, #f0f7ff 0%, #e8f4ff 100%);
+    border: 1px solid #b3d4f5;
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+
+    .sp-summary-header {
+      font-weight: 700;
+      font-size: 14px;
+      color: #0052a3;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 8px;
+
+      i {
+        margin-right: 6px;
+      }
+    }
+
+    .sp-summary-body {
+      font-size: 15px;
+      color: #333;
+      line-height: 1.6;
+    }
+
+    .sp-summary-feedback {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #c9dff5;
+
+      .sp-feedback-label {
+        font-size: 13px;
+        color: #555;
+        margin-right: 4px;
+      }
+
+      .sp-thumb-btn {
+        background: transparent;
+        border: 1px solid #b3d4f5;
+        color: #0066cc;
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+        cursor: pointer;
+
+        &:hover:not(:disabled) {
+          background-color: #0066cc;
+          color: #fff;
+          border-color: #0066cc;
+        }
+
+        &.active {
+          background-color: #0066cc;
+          color: #fff;
+          border-color: #0066cc;
+        }
+
+        &:disabled {
+          opacity: 0.6;
+          cursor: default;
+        }
+      }
+
+      .sp-feedback-thanks {
+        font-size: 13px;
+        color: #2e7d32;
+        font-style: italic;
+      }
+    }
+  }
+
+  // ── Results container ──────────────────────────────────────────────────
+  .sp-results-container {
+    .sp-results-header {
+      font-size: 13px;
+      color: #6c757d;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #e9ecef;
+    }
+
+    .sp-results-list {
+      margin: 0;
+      padding: 0;
+    }
+  }
+
+  // ── Result item ────────────────────────────────────────────────────────
+  .sp-result-item {
+    padding: 16px 0;
+    border-bottom: 1px solid #f0f2f5;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    &:hover {
+      .sp-result-title {
+        text-decoration: underline;
+      }
+    }
+
+    .sp-result-title-row {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    .sp-result-title {
+      font-size: 17px;
+      font-weight: 600;
+      color: #0066cc;
+      text-decoration: none;
+      line-height: 1.3;
+      flex: 1 1 auto;
+
+      &:hover {
+        text-decoration: underline;
+        color: #0052a3;
+      }
+    }
+
+    .sp-result-snippet {
+      font-size: 14px;
+      color: #444;
+      line-height: 1.55;
+      margin: 0 0 8px;
+
+      strong {
+        background-color: #fff3cd;
+        padding: 0 2px;
+        border-radius: 2px;
+        color: #212529;
+      }
+    }
+
+    .sp-result-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      font-size: 12px;
+      color: #888;
+
+      i {
+        margin-right: 3px;
+      }
+    }
+
+    .sp-result-score-debug {
+      font-family: monospace;
+      font-size: 11px;
+      color: #aaa;
+    }
+  }
+
+  // ── Trust Badges ───────────────────────────────────────────────────────
+  .sp-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+    flex-shrink: 0;
+
+    .sp-badge-icon {
+      font-size: 11px;
+    }
+
+    // Green — Frequently Helpful
+    &.sp-badge-green {
+      background-color: #e8f5e9;
+      color: #2e7d32;
+      border: 1px solid #a5d6a7;
+    }
+
+    // Blue — Updated Recently
+    &.sp-badge-blue {
+      background-color: #e3f2fd;
+      color: #1565c0;
+      border: 1px solid #90caf9;
+    }
+
+    // Amber — May Be Outdated
+    &.sp-badge-amber {
+      background-color: #fff8e1;
+      color: #e65100;
+      border: 1px solid #ffcc80;
+    }
+  }
+
+  // ── No results ─────────────────────────────────────────────────────────
+  .sp-no-results {
+    padding: 48px 20px;
+
+    .sp-no-results-icon {
+      color: #c0c6d0;
+      display: block;
+      margin-bottom: 16px;
+    }
+
+    .sp-no-results-text {
+      font-size: 16px;
+      color: #555;
+      margin-bottom: 6px;
+    }
+
+    .sp-no-results-hint {
+      font-size: 14px;
+      color: #888;
+    }
+  }
+
+  // ── Error state ────────────────────────────────────────────────────────
+  .sp-error-state {
+    margin-top: 16px;
+
+    .alert {
+      font-size: 14px;
+
+      i {
+        margin-right: 6px;
+      }
+    }
+  }
+}

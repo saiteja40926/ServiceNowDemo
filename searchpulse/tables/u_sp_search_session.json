@@ -1,0 +1,123 @@
+{
+  "table_name": "u_sp_search_session",
+  "label": "Search Session",
+  "scope": "x_sp_searchpulse",
+  "extends": "task",
+  "is_extendable": false,
+  "auto_number": true,
+  "number_prefix": "SPSS",
+  "access": "public",
+  "fields": [
+    {
+      "name": "session_id",
+      "label": "Session ID",
+      "type": "string",
+      "max_length": 40,
+      "mandatory": true,
+      "unique": true,
+      "comments": "UUID generated client-side at session start"
+    },
+    {
+      "name": "user",
+      "label": "User",
+      "type": "reference",
+      "reference_table": "sys_user",
+      "mandatory": false,
+      "comments": "Logged-in user who performed the search; null for anonymous"
+    },
+    {
+      "name": "query",
+      "label": "Search Query",
+      "type": "string",
+      "max_length": 500,
+      "mandatory": true,
+      "comments": "The raw search query string entered by the user"
+    },
+    {
+      "name": "scrolled_to_results",
+      "label": "Scrolled to Results",
+      "type": "boolean",
+      "default_value": false,
+      "comments": "True if user scrolled past the AI summary panel into article results"
+    },
+    {
+      "name": "clicked_article",
+      "label": "Clicked Article",
+      "type": "reference",
+      "reference_table": "kb_knowledge",
+      "mandatory": false,
+      "comments": "The first article the user clicked from the result list"
+    },
+    {
+      "name": "came_back_to_search",
+      "label": "Came Back to Search",
+      "type": "boolean",
+      "default_value": false,
+      "comments": "True if user navigated back to the search page after clicking an article"
+    },
+    {
+      "name": "reformulated_query",
+      "label": "Reformulated Query",
+      "type": "boolean",
+      "default_value": false,
+      "comments": "True if user submitted a new/different query in the same session"
+    },
+    {
+      "name": "summary_feedback",
+      "label": "Summary Feedback",
+      "type": "choice",
+      "default_value": "none",
+      "choices": [
+        { "value": "up",   "label": "Thumbs Up",   "sequence": 1 },
+        { "value": "down", "label": "Thumbs Down",  "sequence": 2 },
+        { "value": "none", "label": "No Feedback",  "sequence": 3 }
+      ],
+      "comments": "User feedback on the AI-generated search summary"
+    },
+    {
+      "name": "created",
+      "label": "Created",
+      "type": "glide_date_time",
+      "mandatory": true,
+      "read_only": true,
+      "comments": "Timestamp when the session was first created"
+    },
+    {
+      "name": "outcome_classified",
+      "label": "Outcome Classified",
+      "type": "boolean",
+      "default_value": false,
+      "comments": "Set to true once SearchPulseClassifier has processed this session"
+    },
+    {
+      "name": "session_duration_seconds",
+      "label": "Session Duration (seconds)",
+      "type": "integer",
+      "default_value": 0,
+      "comments": "Wall-clock seconds from session start to session end signal"
+    }
+  ],
+  "acls": [
+    {
+      "operation": "read",
+      "type": "record",
+      "roles": ["x_sp_searchpulse.admin", "x_sp_searchpulse.analyst"]
+    },
+    {
+      "operation": "write",
+      "type": "record",
+      "roles": ["x_sp_searchpulse.admin"]
+    },
+    {
+      "operation": "create",
+      "type": "record",
+      "roles": ["x_sp_searchpulse.admin", "snc_internal"]
+    }
+  ],
+  "indexes": [
+    { "fields": ["session_id"], "unique": true },
+    { "fields": ["user", "created"] },
+    { "fields": ["clicked_article"] },
+    { "fields": ["outcome_classified", "created"] }
+  ]
+}

@@ -1,0 +1,81 @@
+{
+  "table_name": "u_sp_search_outcome",
+  "label": "Search Outcome",
+  "scope": "x_sp_searchpulse",
+  "extends": "",
+  "is_extendable": false,
+  "auto_number": true,
+  "number_prefix": "SPSO",
+  "access": "public",
+  "fields": [
+    {
+      "name": "session",
+      "label": "Session",
+      "type": "reference",
+      "reference_table": "u_sp_search_session",
+      "mandatory": true,
+      "comments": "Parent search session this outcome was derived from"
+    },
+    {
+      "name": "outcome_type",
+      "label": "Outcome Type",
+      "type": "choice",
+      "mandatory": true,
+      "choices": [
+        { "value": "summary_satisfied", "label": "Summary Satisfied",  "sequence": 1 },
+        { "value": "drilled_down",      "label": "Drilled Down",       "sequence": 2 },
+        { "value": "result_failed",     "label": "Result Failed",      "sequence": 3 },
+        { "value": "full_failure",      "label": "Full Failure",       "sequence": 4 },
+        { "value": "summary_rejected",  "label": "Summary Rejected",   "sequence": 5 },
+        { "value": "ambiguous",         "label": "Ambiguous",          "sequence": 6 }
+      ],
+      "comments": "Classification produced by SearchPulseClassifier.classifySession()"
+    },
+    {
+      "name": "impacted_article",
+      "label": "Impacted Article",
+      "type": "reference",
+      "reference_table": "kb_knowledge",
+      "mandatory": false,
+      "comments": "The KB article that was impacted by this outcome; may be null for full_failure/ambiguous"
+    },
+    {
+      "name": "created",
+      "label": "Created",
+      "type": "glide_date_time",
+      "mandatory": true,
+      "read_only": true,
+      "comments": "Timestamp when this outcome record was created by the classifier"
+    },
+    {
+      "name": "reputation_applied",
+      "label": "Reputation Applied",
+      "type": "boolean",
+      "default_value": false,
+      "comments": "Set to true once the nightly ReputationJob has incorporated this outcome into scoring"
+    }
+  ],
+  "acls": [
+    {
+      "operation": "read",
+      "type": "record",
+      "roles": ["x_sp_searchpulse.admin", "x_sp_searchpulse.analyst"]
+    },
+    {
+      "operation": "write",
+      "type": "record",
+      "roles": ["x_sp_searchpulse.admin"]
+    },
+    {
+      "operation": "create",
+      "type": "record",
+      "roles": ["x_sp_searchpulse.admin"]
+    }
+  ],
+  "indexes": [
+    { "fields": ["session"],           "unique": false },
+    { "fields": ["impacted_article"],  "unique": false },
+    { "fields": ["outcome_type", "created"] },
+    { "fields": ["reputation_applied", "created"] }
+  ]
+}

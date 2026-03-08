@@ -1,0 +1,146 @@
+{
+  "application": {
+    "name": "SearchPulse Agent",
+    "scope": "x_sp_searchpulse",
+    "version": "1.0.0",
+    "short_description": "Behavior-driven search optimization engine for ServiceNow AI Search and Portal Search.",
+    "description": "SearchPulse Agent improves Enterprise Search results by tracking user search behavior and automatically adjusting article reputation and ranking. It captures user signals, classifies session outcomes, computes article reputation scores, and influences search ranking and UI trust badges.",
+    "vendor": "x_sp_searchpulse",
+    "vendor_prefix": "x_sp",
+    "minimum_version": "Tokyo",
+    "active": true,
+    "roles": [
+      {
+        "name": "x_sp_searchpulse.admin",
+        "description": "Full administrative access to SearchPulse tables, jobs, and dashboards.",
+        "elevated_privilege": false
+      },
+      {
+        "name": "x_sp_searchpulse.analyst",
+        "description": "Read-only access to SearchPulse analytics, sessions, outcomes, and reputation records.",
+        "elevated_privilege": false
+      }
+    ]
+  },
+  "tables": [
+    {
+      "name": "u_sp_search_session",
+      "label": "Search Session",
+      "file": "tables/u_sp_search_session.json"
+    },
+    {
+      "name": "u_sp_search_outcome",
+      "label": "Search Outcome",
+      "file": "tables/u_sp_search_outcome.json"
+    },
+    {
+      "name": "u_sp_article_reputation",
+      "label": "Article Reputation",
+      "file": "tables/u_sp_article_reputation.json"
+    }
+  ],
+  "script_includes": [
+    {
+      "name": "SearchPulseClassifier",
+      "description": "Classifies search sessions into outcome types (summary_satisfied, drilled_down, result_failed, full_failure, summary_rejected, ambiguous).",
+      "client_callable": false,
+      "accessible_from": "server_only",
+      "file": "script_includes/SearchPulseClassifier.js"
+    },
+    {
+      "name": "SearchPulseRankingEngine",
+      "description": "Provides reputation-based score multipliers and re-ranks search result sets.",
+      "client_callable": false,
+      "accessible_from": "server_only",
+      "file": "script_includes/SearchPulseRankingEngine.js"
+    },
+    {
+      "name": "SearchPulseBadgeService",
+      "description": "Computes trust badge metadata (Frequently Helpful, Updated Recently, May Be Outdated) for KB articles.",
+      "client_callable": false,
+      "accessible_from": "server_only",
+      "file": "script_includes/SearchPulseBadgeService.js"
+    }
+  ],
+  "scripted_rest_apis": [
+    {
+      "name": "SearchPulse Session API",
+      "base_path": "/x_sp_searchpulse",
+      "file": "rest_apis/SearchPulseSessionAPI.json",
+      "endpoints": [
+        {
+          "name": "Start Session",
+          "path": "/session/start",
+          "method": "POST",
+          "file": "rest_apis/endpoints/session_start.js"
+        },
+        {
+          "name": "Record Signal",
+          "path": "/session/signal",
+          "method": "POST",
+          "file": "rest_apis/endpoints/session_signal.js"
+        },
+        {
+          "name": "End Session",
+          "path": "/session/end",
+          "method": "POST",
+          "file": "rest_apis/endpoints/session_end.js"
+        }
+      ]
+    }
+  ],
+  "scheduled_jobs": [
+    {
+      "name": "SearchPulseReputationJob",
+      "description": "Nightly job that classifies pending sessions and recalculates article reputation scores.",
+      "schedule": "0 2 * * *",
+      "schedule_label": "Daily at 02:00",
+      "run_as": "system",
+      "file": "scheduled_jobs/SearchPulseReputationJob.js"
+    }
+  ],
+  "portal_widgets": [
+    {
+      "id": "searchpulse-search-widget",
+      "name": "SearchPulse Search Widget",
+      "description": "Full search widget with signal capture, re-ranking, and badge display.",
+      "directory": "portal_widgets/searchpulse-search-widget/"
+    },
+    {
+      "id": "searchpulse-badge-widget",
+      "name": "SearchPulse Badge Widget",
+      "description": "Standalone trust badge component for KB article view pages.",
+      "directory": "portal_widgets/searchpulse-badge-widget/"
+    }
+  ],
+  "dashboards": [
+    {
+      "name": "SearchPulse Analytics",
+      "description": "Admin dashboard with top promoted/demoted articles, reformulation rate, first-click success rate, and reputation distribution.",
+      "file": "dashboards/searchpulse_analytics_dashboard.json",
+      "report_scripts": [
+        "dashboards/scripts/reformulation_rate_report.js",
+        "dashboards/scripts/first_click_success_report.js",
+        "dashboards/scripts/summary_satisfaction_report.js",
+        "dashboards/scripts/reputation_distribution_report.js"
+      ]
+    }
+  ],
+  "test_data": [
+    {
+      "name": "Sample Data Seeder",
+      "description": "Seeds 8 KB articles, 18 search sessions, and runs classification + reputation engine. Run in Scripts - Background.",
+      "file": "test_data/sample_data.js"
+    }
+  ],
+  "dependencies": {
+    "plugins_required": [],
+    "tables_referenced": [
+      "kb_knowledge",
+      "sys_user",
+      "kb_category"
+    ],
+    "minimum_servicenow_version": "Tokyo (22.x)",
+    "compatible_versions": ["Tokyo", "Utah", "Vancouver", "Washington DC", "Xanadu"]
+  }
+}

@@ -1,0 +1,156 @@
+<div class="sp-searchpulse-widget" ng-controller="SearchPulseWidgetCtrl">
+
+  <!-- ── Search Input ──────────────────────────────────────────────────── -->
+  <div class="sp-search-bar">
+    <div class="input-group">
+      <span class="input-group-addon">
+        <i class="fa fa-search" aria-hidden="true"></i>
+      </span>
+      <input
+        type="text"
+        class="form-control sp-search-input"
+        placeholder="{{options.search_placeholder || 'Search for answers...'}}"
+        ng-model="c.searchQuery"
+        ng-keyup="c.onQueryKeyUp($event)"
+        aria-label="Search"
+        autocomplete="off"
+      />
+      <span class="input-group-btn">
+        <button
+          class="btn btn-primary sp-search-btn"
+          ng-click="c.submitSearch()"
+          ng-disabled="!c.searchQuery || c.searchQuery.length < 2"
+          aria-label="Submit search"
+        >
+          Search
+        </button>
+      </span>
+    </div>
+  </div>
+
+  <!-- ── Loading indicator ────────────────────────────────────────────── -->
+  <div class="sp-loading text-center" ng-if="c.loading">
+    <i class="fa fa-spinner fa-spin fa-2x" aria-hidden="true"></i>
+    <p class="sp-loading-text">Searching...</p>
+  </div>
+
+  <!-- ── AI Summary Panel ──────────────────────────────────────────────── -->
+  <div class="sp-summary-panel" ng-if="c.aiSummary && !c.loading">
+    <div class="sp-summary-header">
+      <i class="fa fa-magic" aria-hidden="true"></i>
+      <span>AI Summary</span>
+    </div>
+    <div class="sp-summary-body" ng-bind-html="c.aiSummary"></div>
+
+    <!-- Summary Feedback -->
+    <div class="sp-summary-feedback" ng-if="options.show_summary_feedback !== false">
+      <span class="sp-feedback-label">Was this helpful?</span>
+      <button
+        class="btn btn-icon sp-thumb-btn"
+        ng-class="{'active': c.summaryFeedback === 'up'}"
+        ng-click="c.sendSummaryFeedback('up')"
+        ng-disabled="c.summaryFeedback !== null"
+        aria-label="Thumbs up"
+        title="Helpful"
+      >
+        <i class="fa fa-thumbs-up" aria-hidden="true"></i>
+      </button>
+      <button
+        class="btn btn-icon sp-thumb-btn"
+        ng-class="{'active': c.summaryFeedback === 'down'}"
+        ng-click="c.sendSummaryFeedback('down')"
+        ng-disabled="c.summaryFeedback !== null"
+        aria-label="Thumbs down"
+        title="Not helpful"
+      >
+        <i class="fa fa-thumbs-down" aria-hidden="true"></i>
+      </button>
+      <span
+        class="sp-feedback-thanks"
+        ng-if="c.summaryFeedback !== null"
+      >Thanks for your feedback!</span>
+    </div>
+  </div>
+
+  <!-- ── Search Results ────────────────────────────────────────────────── -->
+  <div
+    class="sp-results-container"
+    ng-if="c.results && c.results.length > 0 && !c.loading"
+    id="sp-results-section"
+  >
+    <div class="sp-results-header">
+      <span class="sp-results-count">
+        {{c.results.length}} result<span ng-if="c.results.length !== 1">s</span>
+        for <strong>"{{c.lastQuery}}"</strong>
+      </span>
+    </div>
+
+    <ul class="sp-results-list list-unstyled">
+      <li
+        class="sp-result-item"
+        ng-repeat="result in c.results track by result.sys_id"
+        ng-click="c.onResultClick(result)"
+      >
+        <div class="sp-result-title-row">
+          <a
+            class="sp-result-title"
+            ng-href="{{result.url}}"
+            ng-bind="result.title"
+            target="_self"
+          ></a>
+
+          <!-- Trust Badge -->
+          <span
+            class="sp-badge sp-badge-{{result.badge.color}}"
+            ng-if="result.badge && result.badge.show && options.show_badges !== false"
+            title="{{result.badge.label}}"
+          >
+            <i class="fa sp-badge-icon" ng-class="c.getBadgeIconClass(result.badge.icon)" aria-hidden="true"></i>
+            {{result.badge.label}}
+          </span>
+        </div>
+
+        <p
+          class="sp-result-snippet"
+          ng-if="result.snippet"
+          ng-bind-html="result.snippet"
+        ></p>
+
+        <div class="sp-result-meta">
+          <span class="sp-result-category" ng-if="result.category">
+            <i class="fa fa-folder-open-o" aria-hidden="true"></i> {{result.category}}
+          </span>
+          <span class="sp-result-updated" ng-if="result.updated">
+            <i class="fa fa-clock-o" aria-hidden="true"></i> Updated {{result.updated}}
+          </span>
+          <span
+            class="sp-result-score-debug"
+            ng-if="c.debugMode"
+            title="Base: {{result.original_score | number:2}} × {{result.multiplier}} = {{result.score | number:2}}"
+          >
+            Score: {{result.score | number:2}}
+          </span>
+        </div>
+      </li>
+    </ul>
+  </div>
+
+  <!-- ── No Results ────────────────────────────────────────────────────── -->
+  <div
+    class="sp-no-results text-center"
+    ng-if="c.searched && (!c.results || c.results.length === 0) && !c.loading"
+  >
+    <i class="fa fa-search fa-3x sp-no-results-icon" aria-hidden="true"></i>
+    <p class="sp-no-results-text">No results found for <strong>"{{c.lastQuery}}"</strong></p>
+    <p class="sp-no-results-hint">Try different keywords or contact support.</p>
+  </div>
+
+  <!-- ── Error State ───────────────────────────────────────────────────── -->
+  <div class="sp-error-state" ng-if="c.error">
+    <div class="alert alert-warning">
+      <i class="fa fa-exclamation-triangle" aria-hidden="true"></i>
+      Search is temporarily unavailable. Please try again later.
+    </div>
+  </div>
+
+</div>

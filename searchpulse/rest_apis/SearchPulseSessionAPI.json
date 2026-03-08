@@ -1,0 +1,44 @@
+{
+  "name": "SearchPulse Session API",
+  "service_id": "searchpulse_session_api",
+  "base_api_path": "/x_sp_searchpulse",
+  "scope": "x_sp_searchpulse",
+  "short_description": "Accepts client-side search session signals from the Service Portal and stores them in u_sp_search_session.",
+  "requires_authentication": false,
+  "enforce_acl": "none",
+  "resources": [
+    {
+      "name": "Start Session",
+      "relative_path": "/session/start",
+      "http_method": "POST",
+      "short_description": "Creates a new search session record and returns a session_id.",
+      "produces": "application/json",
+      "consumes": "application/json",
+      "script_file": "endpoints/session_start.js",
+      "requires_acl_authorization": false,
+      "requires_authentication": false
+    },
+    {
+      "name": "Record Signal",
+      "relative_path": "/session/signal",
+      "http_method": "POST",
+      "short_description": "Records a single user signal event against an existing session.",
+      "produces": "application/json",
+      "consumes": "application/json",
+      "script_file": "endpoints/session_signal.js",
+      "requires_acl_authorization": false,
+      "requires_authentication": false
+    },
+    {
+      "name": "End Session",
+      "relative_path": "/session/end",
+      "http_method": "POST",
+      "short_description": "Finalizes the session and triggers outcome classification.",
+      "produces": "application/json",
+      "consumes": "application/json",
+      "script_file": "endpoints/session_end.js",
+      "requires_acl_authorization": false,
+      "requires_authentication": false
+    }
+  ]
+}

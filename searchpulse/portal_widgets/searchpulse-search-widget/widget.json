@@ -1,0 +1,43 @@
+{
+  "id": "searchpulse-search-widget",
+  "name": "SearchPulse Search Widget",
+  "description": "Enhanced Service Portal search widget that captures user signals (scroll, click, thumbs feedback, reformulation) and sends them to the SearchPulse Session API. Displays trust badges alongside article results.",
+  "scope": "x_sp_searchpulse",
+  "category": "search",
+  "template_file": "template.html",
+  "client_script_file": "client_script.js",
+  "server_script_file": "server_script.js",
+  "css_file": "style.scss",
+  "option_schema": [
+    {
+      "name": "search_placeholder",
+      "label": "Search Placeholder Text",
+      "type": "string",
+      "default_value": "Search for answers..."
+    },
+    {
+      "name": "max_results",
+      "label": "Maximum Results",
+      "type": "integer",
+      "default_value": 10
+    },
+    {
+      "name": "show_badges",
+      "label": "Show Reputation Badges",
+      "type": "boolean",
+      "default_value": true
+    },
+    {
+      "name": "show_summary_feedback",
+      "label": "Show AI Summary Feedback Thumbs",
+      "type": "boolean",
+      "default_value": true
+    },
+    {
+      "name": "kb_category",
+      "label": "KB Category Filter (sys_id)",
+      "type": "string",
+      "default_value": ""
+    }
+  ]
+}

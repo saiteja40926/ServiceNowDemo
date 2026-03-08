@@ -1,0 +1,104 @@
+{
+  "table_name": "u_sp_article_reputation",
+  "label": "Article Reputation",
+  "scope": "x_sp_searchpulse",
+  "extends": "",
+  "is_extendable": false,
+  "auto_number": false,
+  "access": "public",
+  "fields": [
+    {
+      "name": "article",
+      "label": "Article",
+      "type": "reference",
+      "reference_table": "kb_knowledge",
+      "mandatory": true,
+      "unique": true,
+      "comments": "The KB article this reputation record belongs to (1-to-1)"
+    },
+    {
+      "name": "reputation_score",
+      "label": "Reputation Score",
+      "type": "integer",
+      "default_value": 50,
+      "mandatory": true,
+      "comments": "Clamped 0-100. Starting baseline is 50. Driven by nightly ReputationJob."
+    },
+    {
+      "name": "positive_sessions",
+      "label": "Positive Sessions",
+      "type": "integer",
+      "default_value": 0,
+      "comments": "Cumulative count of sessions classified as summary_satisfied or drilled_down"
+    },
+    {
+      "name": "negative_sessions",
+      "label": "Negative Sessions",
+      "type": "integer",
+      "default_value": 0,
+      "comments": "Cumulative count of sessions classified as result_failed, full_failure, or summary_rejected"
+    },
+    {
+      "name": "last_calculated",
+      "label": "Last Calculated",
+      "type": "glide_date_time",
+      "mandatory": false,
+      "comments": "Timestamp of the last nightly reputation recalculation run"
+    },
+    {
+      "name": "previous_score",
+      "label": "Previous Score",
+      "type": "integer",
+      "default_value": 50,
+      "comments": "Score from the prior calculation cycle; used for trend reporting"
+    },
+    {
+      "name": "score_trend",
+      "label": "Score Trend",
+      "type": "choice",
+      "default_value": "stable",
+      "choices": [
+        { "value": "rising",  "label": "Rising",  "sequence": 1 },
+        { "value": "stable",  "label": "Stable",  "sequence": 2 },
+        { "value": "falling", "label": "Falling", "sequence": 3 }
+      ],
+      "comments": "Derived from delta between reputation_score and previous_score"
+    },
+    {
+      "name": "total_sessions",
+      "label": "Total Sessions",
+      "type": "integer",
+      "default_value": 0,
+      "comments": "Total sessions involving this article; denominator for success rate"
+    },
+    {
+      "name": "first_click_success_rate",
+      "label": "First Click Success Rate",
+      "type": "decimal",
+      "default_value": 0.0,
+      "comments": "Percentage of sessions where clicking this article did NOT result in a return-to-search"
+    }
+  ],
+  "acls": [
+    {
+      "operation": "read",
+      "type": "record",
+      "roles": ["x_sp_searchpulse.admin", "x_sp_searchpulse.analyst", "snc_internal"]
+    },
+    {
+      "operation": "write",
+      "type": "record",
+      "roles": ["x_sp_searchpulse.admin"]
+    },
+    {
+      "operation": "create",
+      "type": "record",
+      "roles": ["x_sp_searchpulse.admin"]
+    }
+  ],
+  "indexes": [
+    { "fields": ["article"],          "unique": true },
+    { "fields": ["reputation_score"], "unique": false },
+    { "fields": ["last_calculated"],  "unique": false }
+  ]
+}

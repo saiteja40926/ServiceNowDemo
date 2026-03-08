@@ -1,0 +1,270 @@
+{
+  "name": "SearchPulse Analytics",
+  "scope": "x_sp_searchpulse",
+  "description": "Admin dashboard for monitoring search behavior, article reputation trends, and session outcome distributions.",
+  "roles_required": ["x_sp_searchpulse.admin", "x_sp_searchpulse.analyst"],
+  "tabs": [
+    {
+      "id": "overview",
+      "label": "Overview",
+      "widgets": [
+        {
+          "id": "top_promoted_articles",
+          "title": "Top Promoted Articles",
+          "type": "list",
+          "description": "Articles with the highest reputation scores (most helpful to users).",
+          "data_source": {
+            "table": "u_sp_article_reputation",
+            "fields": ["article.short_description", "reputation_score", "positive_sessions", "score_trend"],
+            "filter": "reputation_score>=75",
+            "order_by": "reputation_score",
+            "order_direction": "DESC",
+            "limit": 10
+          },
+          "columns": [
+            { "field": "article.short_description", "label": "Article Title",      "link": true },
+            { "field": "reputation_score",          "label": "Score",              "type": "badge_score" },
+            { "field": "positive_sessions",         "label": "Positive Sessions"  },
+            { "field": "score_trend",               "label": "Trend",              "type": "trend_icon" }
+          ],
+          "position": { "row": 0, "col": 0, "width": 6 }
+        },
+        {
+          "id": "most_demoted_articles",
+          "title": "Most Demoted Articles",
+          "type": "list",
+          "description": "Articles with the lowest reputation scores (frequently failing users).",
+          "data_source": {
+            "table": "u_sp_article_reputation",
+            "fields": ["article.short_description", "reputation_score", "negative_sessions", "score_trend"],
+            "filter": "reputation_score<30",
+            "order_by": "reputation_score",
+            "order_direction": "ASC",
+            "limit": 10
+          },
+          "columns": [
+            { "field": "article.short_description", "label": "Article Title",      "link": true },
+            { "field": "reputation_score",          "label": "Score",              "type": "badge_score" },
+            { "field": "negative_sessions",         "label": "Negative Sessions"  },
+            { "field": "score_trend",               "label": "Trend",              "type": "trend_icon" }
+          ],
+          "position": { "row": 0, "col": 6, "width": 6 }
+        },
+        {
+          "id": "reputation_distribution",
+          "title": "Reputation Score Distribution",
+          "type": "donut_chart",
+          "description": "Distribution of all articles by reputation band.",
+          "data_source": {
+            "type": "scripted",
+            "script": "reputation_distribution_report.js"
+          },
+          "chart_config": {
+            "segments": [
+              { "label": "Highly Trusted (75-100)", "color": "#2e7d32", "filter": "reputation_score>=75" },
+              { "label": "Neutral (50-74)",          "color": "#1565c0", "filter": "reputation_score>=50^reputation_score<75" },
+              { "label": "Mildly Demoted (30-49)",   "color": "#e65100", "filter": "reputation_score>=30^reputation_score<50" },
+              { "label": "Heavily Demoted (0-29)",   "color": "#c62828", "filter": "reputation_score<30" }
+            ]
+          },
+          "position": { "row": 1, "col": 0, "width": 4 }
+        },
+        {
+          "id": "outcome_breakdown",
+          "title": "Session Outcome Breakdown",
+          "type": "bar_chart",
+          "description": "Count of each outcome type over the last 30 days.",
+          "data_source": {
+            "table": "u_sp_search_outcome",
+            "group_by": "outcome_type",
+            "filter": "created>=javascript:gs.daysAgo(30)",
+            "aggregate": "COUNT"
+          },
+          "chart_config": {
+            "x_axis": "outcome_type",
+            "y_axis": "count",
+            "colors": {
+              "summary_satisfied": "#2e7d32",
+              "drilled_down":      "#1565c0",
+              "result_failed":     "#e65100",
+              "full_failure":      "#c62828",
+              "summary_rejected":  "#6a1a9a",
+              "ambiguous":         "#607d8b"
+            }
+          },
+          "position": { "row": 1, "col": 4, "width": 8 }
+        }
+      ]
+    },
+    {
+      "id": "search_quality",
+      "label": "Search Quality",
+      "widgets": [
+        {
+          "id": "query_reformulation_rate",
+          "title": "Query Reformulation Rate",
+          "type": "kpi_card",
+          "description": "Percentage of sessions where users had to rephrase their query (indicates search failure).",
+          "data_source": {
+            "type": "scripted",
+            "script": "reformulation_rate_report.js"
+          },
+          "kpi_config": {
+            "value_field":   "rate",
+            "suffix":        "%",
+            "threshold_good": 10,
+            "threshold_warn": 25,
+            "color_good":    "#2e7d32",
+            "color_warn":    "#e65100",
+            "color_bad":     "#c62828"
+          },
+          "position": { "row": 0, "col": 0, "width": 3 }
+        },
+        {
+          "id": "first_click_success_rate",
+          "title": "First-Click Success Rate",
+          "type": "kpi_card",
+          "description": "Percentage of sessions where the first clicked article satisfied the user (no return to search).",
+          "data_source": {
+            "type": "scripted",
+            "script": "first_click_success_report.js"
+          },
+          "kpi_config": {
+            "value_field":   "rate",
+            "suffix":        "%",
+            "threshold_good": 70,
+            "threshold_warn": 50,
+            "color_good":    "#2e7d32",
+            "color_warn":    "#e65100",
+            "color_bad":     "#c62828"
+          },
+          "position": { "row": 0, "col": 3, "width": 3 }
+        },
+        {
+          "id": "summary_satisfaction_rate",
+          "title": "AI Summary Satisfaction Rate",
+          "type": "kpi_card",
+          "description": "Percentage of sessions where users gave a thumbs-up to the AI summary.",
+          "data_source": {
+            "type": "scripted",
+            "script": "summary_satisfaction_report.js"
+          },
+          "kpi_config": {
+            "value_field":   "rate",
+            "suffix":        "%",
+            "threshold_good": 60,
+            "threshold_warn": 40,
+            "color_good":    "#2e7d32",
+            "color_warn":    "#e65100",
+            "color_bad":     "#c62828"
+          },
+          "position": { "row": 0, "col": 6, "width": 3 }
+        },
+        {
+          "id": "total_sessions_7d",
+          "title": "Sessions (Last 7 Days)",
+          "type": "kpi_card",
+          "description": "Total number of search sessions recorded in the last 7 days.",
+          "data_source": {
+            "table": "u_sp_search_session",
+            "filter": "created>=javascript:gs.daysAgo(7)",
+            "aggregate": "COUNT"
+          },
+          "kpi_config": {
+            "value_field": "count",
+            "suffix":      ""
+          },
+          "position": { "row": 0, "col": 9, "width": 3 }
+        },
+        {
+          "id": "top_queries",
+          "title": "Top Search Queries",
+          "type": "list",
+          "description": "Most frequent search queries over the last 30 days.",
+          "data_source": {
+            "table": "u_sp_search_session",
+            "fields": ["query"],
+            "filter": "created>=javascript:gs.daysAgo(30)",
+            "group_by": "query",
+            "aggregate": "COUNT",
+            "order_by": "count",
+            "order_direction": "DESC",
+            "limit": 15
+          },
+          "columns": [
+            { "field": "query", "label": "Query" },
+            { "field": "count", "label": "Sessions", "type": "number" }
+          ],
+          "position": { "row": 1, "col": 0, "width": 6 }
+        },
+        {
+          "id": "sessions_over_time",
+          "title": "Sessions Over Time (30 Days)",
+          "type": "line_chart",
+          "description": "Daily search session volume trend.",
+          "data_source": {
+            "table": "u_sp_search_session",
+            "filter": "created>=javascript:gs.daysAgo(30)",
+            "aggregate": "COUNT",
+            "group_by": "created",
+            "date_truncate": "day"
+          },
+          "chart_config": {
+            "x_axis": "date",
+            "y_axis": "session_count",
+            "line_color": "#0066cc"
+          },
+          "position": { "row": 1, "col": 6, "width": 6 }
+        }
+      ]
+    },
+    {
+      "id": "reputation_management",
+      "label": "Reputation Management",
+      "widgets": [
+        {
+          "id": "score_changes_today",
+          "title": "Score Changes Today",
+          "type": "list",
+          "description": "Articles whose reputation score changed since the last nightly run.",
+          "data_source": {
+            "table": "u_sp_article_reputation",
+            "fields": ["article.short_description", "previous_score", "reputation_score", "score_trend", "last_calculated"],
+            "filter": "last_calculated>=javascript:gs.beginningOfToday()^score_trend!=stable",
+            "order_by": "last_calculated",
+            "order_direction": "DESC",
+            "limit": 20
+          },
+          "columns": [
+            { "field": "article.short_description", "label": "Article",          "link": true },
+            { "field": "previous_score",            "label": "Previous Score" },
+            { "field": "reputation_score",          "label": "New Score",        "type": "badge_score" },
+            { "field": "score_trend",               "label": "Trend",            "type": "trend_icon" }
+          ],
+          "position": { "row": 0, "col": 0, "width": 12 }
+        },
+        {
+          "id": "articles_needing_review",
+          "title": "Articles Needing Review",
+          "type": "list",
+          "description": "Low-reputation articles that may need content updates or archiving.",
+          "data_source": {
+            "table": "u_sp_article_reputation",
+            "fields": ["article.short_description", "reputation_score", "negative_sessions", "total_sessions"],
+            "filter": "reputation_score<30^total_sessions>5",
+            "order_by": "reputation_score",
+            "order_direction": "ASC",
+            "limit": 15
+          },
+          "columns": [
+            { "field": "article.short_description", "label": "Article",            "link": true },
+            { "field": "reputation_score",          "label": "Score",              "type": "badge_score" },
+            { "field": "negative_sessions",         "label": "Negative Sessions"  },
+            { "field": "total_sessions",            "label": "Total Sessions"     }
+          ],
+          "position": { "row": 1, "col": 0, "width": 12 }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "id": "searchpulse-badge-widget",
+  "name": "SearchPulse Badge Widget",
+  "description": "Standalone badge component that renders a reputation trust badge for a single KB article. Can be embedded in KB article view pages or search result overlays.",
+  "scope": "x_sp_searchpulse",
+  "category": "search",
+  "template_file": "template.html",
+  "client_script_file": "client_script.js",
+  "server_script_file": "server_script.js",
+  "css_file": "style.scss",
+  "option_schema": [
+    {
+      "name": "article_sys_id",
+      "label": "Article sys_id",
+      "type": "string",
+      "default_value": "",
+      "hint": "Pass the kb_knowledge sys_id. If empty, uses the page article from URL."
+    },
+    {
+      "name": "show_score",
+      "label": "Show Numeric Score",
+      "type": "boolean",
+      "default_value": false
+    },
+    {
+      "name": "show_trend",
+      "label": "Show Score Trend Arrow",
+      "type": "boolean",
+      "default_value": true
+    }
+  ]
+}
