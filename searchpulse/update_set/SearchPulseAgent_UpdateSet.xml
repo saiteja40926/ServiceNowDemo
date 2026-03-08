@@ -1,0 +1,1222 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<unload unload_date="2026-03-08">
+
+  <!--
+    SearchPulse Agent — Complete Update Set
+    Scope: x_sp_searchpulse
+    Version: 1.0.0
+
+    IMPORT INSTRUCTIONS:
+    1. Go to System Update Sets > Retrieved Update Sets
+    2. Click "Import Update Set from XML"
+    3. Upload this file
+    4. Open the imported update set
+    5. Click "Preview Update Set"
+    6. Click "Commit Update Set"
+  -->
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       SCRIPT INCLUDE: SearchPulseClassifier
+       ═══════════════════════════════════════════════════════════════════ -->
+  <sys_script_include action="INSERT_OR_UPDATE">
+    <access>package_private</access>
+    <active>true</active>
+    <api_name>x_sp_searchpulse.SearchPulseClassifier</api_name>
+    <caller_access/>
+    <client_callable>false</client_callable>
+    <description>Classifies a completed search session into one of six outcome types and persists the result to u_sp_search_outcome. Called by POST /session/end REST endpoint and SearchPulseReputationJob.</description>
+    <name>SearchPulseClassifier</name>
+    <script><![CDATA[var SearchPulseClassifier = Class.create();
+
+SearchPulseClassifier.prototype = {
+
+    type: 'SearchPulseClassifier',
+
+    classifySession: function(sessionRecord) {
+        if (!sessionRecord || !sessionRecord.isValidRecord()) {
+            gs.logWarning('SearchPulseClassifier: invalid sessionRecord supplied', 'SearchPulse');
+            return 'ambiguous';
+        }
+
+        var outcome = this._determineOutcome(sessionRecord);
+
+        this._writeOutcomeRecord(sessionRecord, outcome);
+        this._markSessionClassified(sessionRecord);
+
+        gs.log(
+            'SearchPulseClassifier: session ' + sessionRecord.getValue('session_id') +
+            ' classified as ' + outcome,
+            'SearchPulse'
+        );
+
+        return outcome;
+    },
+
+    _determineOutcome: function(s) {
+        var summaryFeedback = s.getValue('summary_feedback');
+        var scrolled        = s.getValue('scrolled_to_results') === '1' || s.scrolled_to_results == true;
+        var clickedArticle  = s.getValue('clicked_article');
+        var cameBack        = s.getValue('came_back_to_search') === '1' || s.came_back_to_search == true;
+        var reformulated    = s.getValue('reformulated_query') === '1' || s.reformulated_query == true;
+
+        var hasClick = clickedArticle && clickedArticle !== '';
+
+        if (summaryFeedback === 'up' && !scrolled && !hasClick) {
+            return 'summary_satisfied';
+        }
+        if (scrolled && hasClick && !cameBack) {
+            return 'drilled_down';
+        }
+        if (hasClick && cameBack) {
+            return 'result_failed';
+        }
+        if (reformulated) {
+            return 'full_failure';
+        }
+        if (summaryFeedback === 'down') {
+            return 'summary_rejected';
+        }
+        return 'ambiguous';
+    },
+
+    _writeOutcomeRecord: function(sessionRecord, outcome) {
+        var outcomeGR = new GlideRecord('u_sp_search_outcome');
+        outcomeGR.initialize();
+        outcomeGR.setValue('session',            sessionRecord.getUniqueValue());
+        outcomeGR.setValue('outcome_type',       outcome);
+        outcomeGR.setValue('created',            new GlideDateTime().getDisplayValue());
+        outcomeGR.setValue('reputation_applied', false);
+
+        var clickedArticle = sessionRecord.getValue('clicked_article');
+        if (clickedArticle && clickedArticle !== '') {
+            outcomeGR.setValue('impacted_article', clickedArticle);
+        }
+        outcomeGR.insert();
+    },
+
+    _markSessionClassified: function(sessionRecord) {
+        sessionRecord.setValue('outcome_classified', true);
+        sessionRecord.update();
+    },
+
+    classifyPendingSessions: function() {
+        var count = 0;
+        var gr = new GlideRecord('u_sp_search_session');
+        gr.addQuery('outcome_classified', false);
+
+        var cutoff = new GlideDateTime();
+        cutoff.addSeconds(-1800);
+        gr.addQuery('created', '<=', cutoff.getValue());
+        gr.query();
+
+        while (gr.next()) {
+            this.classifySession(gr);
+            count++;
+        }
+
+        gs.log('SearchPulseClassifier: bulk classified ' + count + ' pending sessions', 'SearchPulse');
+        return count;
+    }
+};]]></script>
+    <sys_class_name>sys_script_include</sys_class_name>
+    <sys_id>a1b2c3d4e5f601234567890abcdef001</sys_id>
+    <sys_name>SearchPulseClassifier</sys_name>
+    <sys_package display_value="SearchPulse Agent">x_sp_searchpulse</sys_package>
+    <sys_policy/>
+    <sys_scope display_value="SearchPulse Agent">x_sp_searchpulse</sys_scope>
+    <sys_update_name>sys_script_include_a1b2c3d4e5f601234567890abcdef001</sys_update_name>
+  </sys_script_include>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       SCRIPT INCLUDE: SearchPulseRankingEngine
+       ═══════════════════════════════════════════════════════════════════ -->
+  <sys_script_include action="INSERT_OR_UPDATE">
+    <access>package_private</access>
+    <active>true</active>
+    <api_name>x_sp_searchpulse.SearchPulseRankingEngine</api_name>
+    <caller_access/>
+    <client_callable>false</client_callable>
+    <description>Provides reputation-based score multipliers and re-ranks search result sets. Score bands: >=75 → 1.2x, 50-74 → 1.0x, 30-49 → 0.8x, 0-29 → 0.5x.</description>
+    <name>SearchPulseRankingEngine</name>
+    <script><![CDATA[var SearchPulseRankingEngine = Class.create();
+
+SearchPulseRankingEngine.prototype = {
+
+    type: 'SearchPulseRankingEngine',
+
+    getReputationMultiplier: function(articleSysId) {
+        var score = this._getReputationScore(articleSysId);
+        return this._multiplierFromScore(score);
+    },
+
+    getFinalScore: function(articleSysId, baseScore) {
+        var multiplier = this.getReputationMultiplier(articleSysId);
+        var finalScore = baseScore * multiplier;
+        gs.debug(
+            'SearchPulseRankingEngine: article=' + articleSysId +
+            ' base=' + baseScore + ' multiplier=' + multiplier + ' final=' + finalScore,
+            'SearchPulse'
+        );
+        return finalScore;
+    },
+
+    reRankResults: function(results) {
+        if (!results || results.length === 0) { return results; }
+
+        for (var i = 0; i < results.length; i++) {
+            var result = results[i];
+            if (result.sys_id) {
+                result.original_score = result.score;
+                result.score          = this.getFinalScore(result.sys_id, result.score || 1.0);
+                result.multiplier     = this.getReputationMultiplier(result.sys_id);
+            }
+        }
+
+        results.sort(function(a, b) { return b.score - a.score; });
+        return results;
+    },
+
+    getArticleReputationInfo: function(articleSysId) {
+        var score = this._getReputationScore(articleSysId);
+        return {
+            score:             score,
+            multiplier:        this._multiplierFromScore(score),
+            positive_sessions: this._getField(articleSysId, 'positive_sessions', 0),
+            negative_sessions: this._getField(articleSysId, 'negative_sessions', 0),
+            total_sessions:    this._getField(articleSysId, 'total_sessions', 0),
+            score_trend:       this._getField(articleSysId, 'score_trend', 'stable')
+        };
+    },
+
+    _getReputationScore: function(articleSysId) {
+        if (!articleSysId) { return 50; }
+        var gr = new GlideRecord('u_sp_article_reputation');
+        gr.addQuery('article', articleSysId);
+        gr.setLimit(1);
+        gr.query();
+        return gr.next() ? (parseInt(gr.getValue('reputation_score'), 10) || 50) : 50;
+    },
+
+    _getField: function(articleSysId, fieldName, defaultVal) {
+        var gr = new GlideRecord('u_sp_article_reputation');
+        gr.addQuery('article', articleSysId);
+        gr.setLimit(1);
+        gr.query();
+        if (gr.next()) {
+            var val = gr.getValue(fieldName);
+            return val !== null ? val : defaultVal;
+        }
+        return defaultVal;
+    },
+
+    _multiplierFromScore: function(score) {
+        if (score >= 75) { return 1.2; }
+        if (score >= 50) { return 1.0; }
+        if (score >= 30) { return 0.8; }
+        return 0.5;
+    }
+};]]></script>
+    <sys_class_name>sys_script_include</sys_class_name>
+    <sys_id>a1b2c3d4e5f601234567890abcdef002</sys_id>
+    <sys_name>SearchPulseRankingEngine</sys_name>
+    <sys_package display_value="SearchPulse Agent">x_sp_searchpulse</sys_package>
+    <sys_policy/>
+    <sys_scope display_value="SearchPulse Agent">x_sp_searchpulse</sys_scope>
+    <sys_update_name>sys_script_include_a1b2c3d4e5f601234567890abcdef002</sys_update_name>
+  </sys_script_include>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       SCRIPT INCLUDE: SearchPulseBadgeService
+       ═══════════════════════════════════════════════════════════════════ -->
+  <sys_script_include action="INSERT_OR_UPDATE">
+    <access>package_private</access>
+    <active>true</active>
+    <api_name>x_sp_searchpulse.SearchPulseBadgeService</api_name>
+    <caller_access/>
+    <client_callable>false</client_callable>
+    <description>Computes trust badge metadata for KB articles. Badges: Frequently Helpful (green, score>=75), Updated Recently (blue, updated<=30d and score>=50), May Be Outdated (amber, score 30-49 and age>180d).</description>
+    <name>SearchPulseBadgeService</name>
+    <script><![CDATA[var SearchPulseBadgeService = Class.create();
+
+SearchPulseBadgeService.prototype = {
+
+    type: 'SearchPulseBadgeService',
+
+    BADGE_FREQUENTLY_HELPFUL: 'frequently_helpful',
+    BADGE_UPDATED_RECENTLY:   'updated_recently',
+    BADGE_MAY_BE_OUTDATED:    'may_be_outdated',
+    BADGE_NONE:               'none',
+
+    getBadge: function(articleSysId) {
+        if (!articleSysId) { return this._noBadge(); }
+
+        var repScore        = this._getReputationScore(articleSysId);
+        var articleAge      = this._getArticleAgeInDays(articleSysId);
+        var daysSinceUpdate = this._getDaysSinceUpdate(articleSysId);
+
+        if (repScore >= 75) {
+            return this._badge(this.BADGE_FREQUENTLY_HELPFUL, 'Frequently Helpful', 'green', 'check-circle');
+        }
+        if (daysSinceUpdate !== null && daysSinceUpdate <= 30 && repScore >= 50) {
+            return this._badge(this.BADGE_UPDATED_RECENTLY, 'Updated Recently', 'blue', 'refresh');
+        }
+        if (repScore >= 30 && repScore <= 49 && articleAge !== null && articleAge > 180) {
+            return this._badge(this.BADGE_MAY_BE_OUTDATED, 'May Be Outdated', 'amber', 'alert-triangle');
+        }
+        return this._noBadge();
+    },
+
+    getBadgesForArticles: function(articleSysIds) {
+        if (!articleSysIds || articleSysIds.length === 0) { return {}; }
+
+        var repMap     = this._bulkFetchReputation(articleSysIds);
+        var articleMeta = this._bulkFetchArticleMeta(articleSysIds);
+        var result     = {};
+
+        for (var i = 0; i < articleSysIds.length; i++) {
+            var sysId           = articleSysIds[i];
+            var repScore        = repMap[sysId]      ? repMap[sysId].score        : 50;
+            var articleAge      = articleMeta[sysId] ? articleMeta[sysId].age     : null;
+            var daysSinceUpdate = articleMeta[sysId] ? articleMeta[sysId].updated : null;
+
+            if (repScore >= 75) {
+                result[sysId] = this._badge(this.BADGE_FREQUENTLY_HELPFUL, 'Frequently Helpful', 'green', 'check-circle');
+            } else if (daysSinceUpdate !== null && daysSinceUpdate <= 30 && repScore >= 50) {
+                result[sysId] = this._badge(this.BADGE_UPDATED_RECENTLY, 'Updated Recently', 'blue', 'refresh');
+            } else if (repScore >= 30 && repScore <= 49 && articleAge !== null && articleAge > 180) {
+                result[sysId] = this._badge(this.BADGE_MAY_BE_OUTDATED, 'May Be Outdated', 'amber', 'alert-triangle');
+            } else {
+                result[sysId] = this._noBadge();
+            }
+        }
+        return result;
+    },
+
+    _getReputationScore: function(articleSysId) {
+        var gr = new GlideRecord('u_sp_article_reputation');
+        gr.addQuery('article', articleSysId);
+        gr.setLimit(1);
+        gr.query();
+        return gr.next() ? (parseInt(gr.getValue('reputation_score'), 10) || 50) : 50;
+    },
+
+    _getArticleAgeInDays: function(articleSysId) {
+        var gr = new GlideRecord('kb_knowledge');
+        if (!gr.get(articleSysId)) { return null; }
+        var created = gr.getValue('sys_created_on');
+        if (!created) { return null; }
+        var createdGDT = new GlideDateTime(created);
+        var now        = new GlideDateTime();
+        var diff       = GlideDateTime.subtract(createdGDT, now);
+        return Math.abs(Math.floor(diff.getDayPart()));
+    },
+
+    _getDaysSinceUpdate: function(articleSysId) {
+        var gr = new GlideRecord('kb_knowledge');
+        if (!gr.get(articleSysId)) { return null; }
+        var updated = gr.getValue('sys_updated_on');
+        if (!updated) { return null; }
+        var updatedGDT = new GlideDateTime(updated);
+        var now        = new GlideDateTime();
+        var diff       = GlideDateTime.subtract(updatedGDT, now);
+        return Math.abs(Math.floor(diff.getDayPart()));
+    },
+
+    _bulkFetchReputation: function(sysIds) {
+        var map = {};
+        var gr  = new GlideRecord('u_sp_article_reputation');
+        gr.addQuery('article', 'IN', sysIds.join(','));
+        gr.query();
+        while (gr.next()) {
+            map[gr.getValue('article')] = { score: parseInt(gr.getValue('reputation_score'), 10) || 50 };
+        }
+        return map;
+    },
+
+    _bulkFetchArticleMeta: function(sysIds) {
+        var map = {};
+        var now = new GlideDateTime();
+        var gr  = new GlideRecord('kb_knowledge');
+        gr.addQuery('sys_id', 'IN', sysIds.join(','));
+        gr.query();
+        while (gr.next()) {
+            var sid             = gr.getUniqueValue();
+            var created         = gr.getValue('sys_created_on');
+            var updated         = gr.getValue('sys_updated_on');
+            var ageInDays       = null;
+            var daysSinceUpdate = null;
+            if (created) {
+                var diffC = GlideDateTime.subtract(new GlideDateTime(created), now);
+                ageInDays = Math.abs(Math.floor(diffC.getDayPart()));
+            }
+            if (updated) {
+                var diffU = GlideDateTime.subtract(new GlideDateTime(updated), now);
+                daysSinceUpdate = Math.abs(Math.floor(diffU.getDayPart()));
+            }
+            map[sid] = { age: ageInDays, updated: daysSinceUpdate };
+        }
+        return map;
+    },
+
+    _badge: function(type, label, color, icon) {
+        return { type: type, label: label, color: color, icon: icon, show: true };
+    },
+
+    _noBadge: function() {
+        return { type: this.BADGE_NONE, label: '', color: null, icon: null, show: false };
+    }
+};]]></script>
+    <sys_class_name>sys_script_include</sys_class_name>
+    <sys_id>a1b2c3d4e5f601234567890abcdef003</sys_id>
+    <sys_name>SearchPulseBadgeService</sys_name>
+    <sys_package display_value="SearchPulse Agent">x_sp_searchpulse</sys_package>
+    <sys_policy/>
+    <sys_scope display_value="SearchPulse Agent">x_sp_searchpulse</sys_scope>
+    <sys_update_name>sys_script_include_a1b2c3d4e5f601234567890abcdef003</sys_update_name>
+  </sys_script_include>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       SCHEDULED JOB: SearchPulseReputationJob
+       ═══════════════════════════════════════════════════════════════════ -->
+  <sys_trigger action="INSERT_OR_UPDATE">
+    <action>0</action>
+    <active>true</active>
+    <application display_value="SearchPulse Agent">x_sp_searchpulse</application>
+    <business_calendar/>
+    <calendar_skip_blackout>false</calendar_skip_blackout>
+    <claimed_by/>
+    <condition/>
+    <consecutive_error_count>0</consecutive_error_count>
+    <document/>
+    <document_key/>
+    <error_string/>
+    <job_origin/>
+    <name>SearchPulseReputationJob</name>
+    <next_action>2026-03-09 02:00:00</next_action>
+    <offset_type/>
+    <offset_unit/>
+    <order>100</order>
+    <overflow_action>0</overflow_action>
+    <overflow_time>7200</overflow_time>
+    <priority>50</priority>
+    <queue>default</queue>
+    <remediated_error_count>0</remediated_error_count>
+    <run_as display_value="System Administrator">6816f79cc0a8016401c5a33be04be441</run_as>
+    <run_dayofmonth>0</run_dayofmonth>
+    <run_dayofweek>0</run_dayofweek>
+    <run_period/>
+    <run_time>02:00:00</run_time>
+    <run_type>daily</run_type>
+    <script><![CDATA[gs.log('SearchPulseReputationJob: starting nightly run', 'SearchPulse');
+
+var jobStartTime   = new GlideDateTime();
+var totalProcessed = 0;
+var totalUpdated   = 0;
+
+try {
+    _classifyPendingSessions();
+
+    var articleSysIds = _getArticlesWithNewOutcomes();
+
+    gs.log('SearchPulseReputationJob: ' + articleSysIds.length + ' articles to score', 'SearchPulse');
+
+    for (var i = 0; i < articleSysIds.length; i++) {
+        var articleId = articleSysIds[i];
+        try {
+            var updated = _recalculateReputation(articleId);
+            totalProcessed++;
+            if (updated) { totalUpdated++; }
+        } catch(articleErr) {
+            gs.logError('SearchPulseReputationJob: error processing article=' + articleId + ' err=' + articleErr.message, 'SearchPulse');
+        }
+    }
+
+    _markOutcomesApplied(articleSysIds);
+
+    var elapsed = GlideDateTime.subtract(jobStartTime, new GlideDateTime()).getNumericValue() / 1000;
+    gs.log('SearchPulseReputationJob: completed. processed=' + totalProcessed + ' updated=' + totalUpdated + ' elapsed=' + elapsed + 's', 'SearchPulse');
+
+} catch (e) {
+    gs.logError('SearchPulseReputationJob: fatal error - ' + e.message, 'SearchPulse');
+}
+
+function _classifyPendingSessions() {
+    var classifier = new x_sp_searchpulse.SearchPulseClassifier();
+    var count = classifier.classifyPendingSessions();
+    gs.log('SearchPulseReputationJob: pre-classified ' + count + ' orphaned sessions', 'SearchPulse');
+}
+
+function _getArticlesWithNewOutcomes() {
+    var sysIds = [];
+    var seen   = {};
+    var gr = new GlideRecord('u_sp_search_outcome');
+    gr.addQuery('reputation_applied', false);
+    gr.addNotNullQuery('impacted_article');
+    gr.query();
+    while (gr.next()) {
+        var artId = gr.getValue('impacted_article');
+        if (artId && !seen[artId]) { seen[artId] = true; sysIds.push(artId); }
+    }
+    return sysIds;
+}
+
+function _recalculateReputation(articleSysId) {
+    var outcomes = _getOutcomesForArticle(articleSysId);
+    if (outcomes.length === 0) { return false; }
+
+    var positiveDelta = 0, negativeDelta = 0, posCount = 0, negCount = 0;
+    var POSITIVE_WEIGHT = { 'summary_satisfied': 3, 'drilled_down': 2 };
+    var NEGATIVE_WEIGHT = { 'summary_rejected': 3, 'result_failed': 2, 'full_failure': 1 };
+
+    for (var i = 0; i < outcomes.length; i++) {
+        var ot = outcomes[i];
+        if (POSITIVE_WEIGHT[ot])      { positiveDelta += POSITIVE_WEIGHT[ot]; posCount++; }
+        else if (NEGATIVE_WEIGHT[ot]) { negativeDelta += NEGATIVE_WEIGHT[ot]; negCount++; }
+    }
+
+    var repGR = new GlideRecord('u_sp_article_reputation');
+    var isNew = false;
+    repGR.addQuery('article', articleSysId);
+    repGR.setLimit(1);
+    repGR.query();
+
+    if (!repGR.next()) {
+        repGR = new GlideRecord('u_sp_article_reputation');
+        repGR.initialize();
+        repGR.setValue('article', articleSysId);
+        repGR.setValue('reputation_score', 50);
+        repGR.setValue('positive_sessions', 0);
+        repGR.setValue('negative_sessions', 0);
+        repGR.setValue('total_sessions', 0);
+        isNew = true;
+    }
+
+    var currentScore  = parseInt(repGR.getValue('reputation_score'), 10) || 50;
+    var previousScore = currentScore;
+    var newScore      = Math.min(100, Math.max(0, currentScore + (positiveDelta - negativeDelta)));
+    var newPositive   = (parseInt(repGR.getValue('positive_sessions'), 10) || 0) + posCount;
+    var newNegative   = (parseInt(repGR.getValue('negative_sessions'), 10) || 0) + negCount;
+    var newTotal      = (parseInt(repGR.getValue('total_sessions'), 10)    || 0) + outcomes.length;
+    var successRate   = newTotal > 0 ? parseFloat(((newPositive / newTotal) * 100).toFixed(2)) : 0.0;
+    var trend         = newScore > previousScore + 2 ? 'rising' : newScore < previousScore - 2 ? 'falling' : 'stable';
+
+    repGR.setValue('previous_score',           previousScore);
+    repGR.setValue('reputation_score',         newScore);
+    repGR.setValue('positive_sessions',        newPositive);
+    repGR.setValue('negative_sessions',        newNegative);
+    repGR.setValue('total_sessions',           newTotal);
+    repGR.setValue('last_calculated',          new GlideDateTime().getValue());
+    repGR.setValue('score_trend',              trend);
+    repGR.setValue('first_click_success_rate', successRate);
+
+    if (isNew) { repGR.insert(); } else { repGR.update(); }
+    return true;
+}
+
+function _getOutcomesForArticle(articleSysId) {
+    var types = [];
+    var gr    = new GlideRecord('u_sp_search_outcome');
+    gr.addQuery('impacted_article', articleSysId);
+    gr.addQuery('reputation_applied', false);
+    gr.query();
+    while (gr.next()) { types.push(gr.getValue('outcome_type')); }
+    return types;
+}
+
+function _markOutcomesApplied(articleSysIds) {
+    if (!articleSysIds || articleSysIds.length === 0) { return; }
+    var gr = new GlideRecord('u_sp_search_outcome');
+    gr.addQuery('impacted_article', 'IN', articleSysIds.join(','));
+    gr.addQuery('reputation_applied', false);
+    gr.query();
+    var count = 0;
+    while (gr.next()) { gr.setValue('reputation_applied', true); gr.update(); count++; }
+    gs.log('SearchPulseReputationJob: marked ' + count + ' outcomes as applied', 'SearchPulse');
+}]]></script>
+    <state>0</state>
+    <sys_class_name>sys_trigger</sys_class_name>
+    <sys_id>a1b2c3d4e5f601234567890abcdef010</sys_id>
+    <sys_name>SearchPulseReputationJob</sys_name>
+    <sys_package display_value="SearchPulse Agent">x_sp_searchpulse</sys_package>
+    <sys_policy/>
+    <sys_scope display_value="SearchPulse Agent">x_sp_searchpulse</sys_scope>
+    <sys_update_name>sys_trigger_a1b2c3d4e5f601234567890abcdef010</sys_update_name>
+    <time_zone/>
+  </sys_trigger>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       SCRIPTED REST API: SearchPulse Session API
+       ═══════════════════════════════════════════════════════════════════ -->
+  <sys_ws_definition action="INSERT_OR_UPDATE">
+    <active>true</active>
+    <base_uri>x_sp_searchpulse</base_uri>
+    <consumes>application/json</consumes>
+    <consumes_customized>false</consumes_customized>
+    <description>Accepts client-side search session signals from the Service Portal.</description>
+    <documentation_url/>
+    <enforces_acl>none</enforces_acl>
+    <name>SearchPulse Session API</name>
+    <produces>application/json</produces>
+    <produces_customized>false</produces_customized>
+    <requires_authentication>false</requires_authentication>
+    <requires_sns_authentication>false</requires_sns_authentication>
+    <short_description>SearchPulse Session API for capturing search signals</short_description>
+    <sys_class_name>sys_ws_definition</sys_class_name>
+    <sys_id>a1b2c3d4e5f601234567890abcdef020</sys_id>
+    <sys_name>SearchPulse Session API</sys_name>
+    <sys_package display_value="SearchPulse Agent">x_sp_searchpulse</sys_package>
+    <sys_scope display_value="SearchPulse Agent">x_sp_searchpulse</sys_scope>
+    <sys_update_name>sys_ws_definition_a1b2c3d4e5f601234567890abcdef020</sys_update_name>
+  </sys_ws_definition>
+
+  <!-- REST Resource: POST /session/start -->
+  <sys_ws_operation action="INSERT_OR_UPDATE">
+    <active>true</active>
+    <consumes_customized>false</consumes_customized>
+    <default_operation_uri>/session/start</default_operation_uri>
+    <enforces_acl/>
+    <http_method>POST</http_method>
+    <name>Start Session</name>
+    <operation_script><![CDATA[(function process(/*RESTAPIRequest*/ request, /*RESTAPIResponse*/ response) {
+
+    var body = request.body.data;
+
+    if (!body || !body.query) {
+        response.setStatus(400);
+        response.setBody({ error: 'Missing required field: query' });
+        return;
+    }
+
+    var query     = body.query;
+    var userSysId = body.user_sys_id || null;
+    var sessionId = body.session_id  || gs.generateGUID().replace(/-/g, '').substring(0, 32);
+
+    var existing = new GlideRecord('u_sp_search_session');
+    existing.addQuery('session_id', sessionId);
+    existing.setLimit(1);
+    existing.query();
+
+    if (existing.next()) {
+        response.setStatus(200);
+        response.setBody({ session_id: sessionId, status: 'already_exists' });
+        return;
+    }
+
+    var gr = new GlideRecord('u_sp_search_session');
+    gr.initialize();
+    gr.setValue('session_id',           sessionId);
+    gr.setValue('query',                query);
+    gr.setValue('scrolled_to_results',  false);
+    gr.setValue('came_back_to_search',  false);
+    gr.setValue('reformulated_query',   false);
+    gr.setValue('summary_feedback',     'none');
+    gr.setValue('outcome_classified',   false);
+    gr.setValue('session_duration_seconds', 0);
+    gr.setValue('created',              new GlideDateTime().getValue());
+
+    if (userSysId) {
+        var userGR = new GlideRecord('sys_user');
+        if (userGR.get(userSysId)) { gr.setValue('user', userSysId); }
+    }
+
+    var newSysId = gr.insert();
+
+    if (!newSysId) {
+        response.setStatus(500);
+        response.setBody({ error: 'Failed to create session' });
+        return;
+    }
+
+    gs.log('SearchPulse: Session started id=' + sessionId + ' query=' + query, 'SearchPulse');
+    response.setStatus(201);
+    response.setBody({ session_id: sessionId, sys_id: newSysId, status: 'created' });
+
+})(request, response);]]></operation_script>
+    <operation_uri>/session/start</operation_uri>
+    <produces_customized>false</produces_customized>
+    <relative_path>/session/start</relative_path>
+    <request_example/>
+    <requires_acl_authorization>false</requires_acl_authorization>
+    <requires_authentication>false</requires_authentication>
+    <requires_sns_authentication>false</requires_sns_authentication>
+    <short_description>Creates a new search session record and returns a session_id.</short_description>
+    <sys_class_name>sys_ws_operation</sys_class_name>
+    <sys_id>a1b2c3d4e5f601234567890abcdef021</sys_id>
+    <sys_name>Start Session</sys_name>
+    <sys_package display_value="SearchPulse Agent">x_sp_searchpulse</sys_package>
+    <sys_scope display_value="SearchPulse Agent">x_sp_searchpulse</sys_scope>
+    <sys_update_name>sys_ws_operation_a1b2c3d4e5f601234567890abcdef021</sys_update_name>
+    <web_service_definition display_value="SearchPulse Session API">a1b2c3d4e5f601234567890abcdef020</web_service_definition>
+    <web_service_version/>
+  </sys_ws_operation>
+
+  <!-- REST Resource: POST /session/signal -->
+  <sys_ws_operation action="INSERT_OR_UPDATE">
+    <active>true</active>
+    <consumes_customized>false</consumes_customized>
+    <default_operation_uri>/session/signal</default_operation_uri>
+    <enforces_acl/>
+    <http_method>POST</http_method>
+    <name>Record Signal</name>
+    <operation_script><![CDATA[(function process(/*RESTAPIRequest*/ request, /*RESTAPIResponse*/ response) {
+
+    var body = request.body.data;
+
+    if (!body || !body.session_id || !body.signal_type) {
+        response.setStatus(400);
+        response.setBody({ error: 'Missing required fields: session_id, signal_type' });
+        return;
+    }
+
+    var sessionId  = body.session_id;
+    var signalType = body.signal_type;
+    var articleId  = body.article || null;
+
+    var validSignals = ['summary_thumbs_up','summary_thumbs_down','scroll_to_results','result_click','return_to_search','query_reformulation'];
+
+    if (validSignals.indexOf(signalType) === -1) {
+        response.setStatus(400);
+        response.setBody({ error: 'Invalid signal_type. Allowed: ' + validSignals.join(', ') });
+        return;
+    }
+
+    var gr = new GlideRecord('u_sp_search_session');
+    gr.addQuery('session_id', sessionId);
+    gr.setLimit(1);
+    gr.query();
+
+    if (!gr.next()) {
+        response.setStatus(404);
+        response.setBody({ error: 'Session not found: ' + sessionId });
+        return;
+    }
+
+    var updated = false;
+
+    switch (signalType) {
+        case 'summary_thumbs_up':
+            if (gr.getValue('summary_feedback') === 'none') { gr.setValue('summary_feedback', 'up'); updated = true; }
+            break;
+        case 'summary_thumbs_down':
+            if (gr.getValue('summary_feedback') === 'none') { gr.setValue('summary_feedback', 'down'); updated = true; }
+            break;
+        case 'scroll_to_results':
+            if (gr.getValue('scrolled_to_results') !== '1') { gr.setValue('scrolled_to_results', true); updated = true; }
+            break;
+        case 'result_click':
+            if (!gr.getValue('clicked_article') && articleId) {
+                var articleGR = new GlideRecord('kb_knowledge');
+                if (articleGR.get(articleId)) { gr.setValue('clicked_article', articleId); updated = true; }
+            }
+            break;
+        case 'return_to_search':
+            if (gr.getValue('came_back_to_search') !== '1') { gr.setValue('came_back_to_search', true); updated = true; }
+            break;
+        case 'query_reformulation':
+            if (gr.getValue('reformulated_query') !== '1') { gr.setValue('reformulated_query', true); updated = true; }
+            break;
+    }
+
+    if (updated) { gr.update(); }
+
+    response.setStatus(200);
+    response.setBody({ session_id: sessionId, signal_type: signalType, status: updated ? 'recorded' : 'no_change' });
+
+})(request, response);]]></operation_script>
+    <operation_uri>/session/signal</operation_uri>
+    <produces_customized>false</produces_customized>
+    <relative_path>/session/signal</relative_path>
+    <request_example/>
+    <requires_acl_authorization>false</requires_acl_authorization>
+    <requires_authentication>false</requires_authentication>
+    <requires_sns_authentication>false</requires_sns_authentication>
+    <short_description>Records a single user signal event against an existing session.</short_description>
+    <sys_class_name>sys_ws_operation</sys_class_name>
+    <sys_id>a1b2c3d4e5f601234567890abcdef022</sys_id>
+    <sys_name>Record Signal</sys_name>
+    <sys_package display_value="SearchPulse Agent">x_sp_searchpulse</sys_package>
+    <sys_scope display_value="SearchPulse Agent">x_sp_searchpulse</sys_scope>
+    <sys_update_name>sys_ws_operation_a1b2c3d4e5f601234567890abcdef022</sys_update_name>
+    <web_service_definition display_value="SearchPulse Session API">a1b2c3d4e5f601234567890abcdef020</web_service_definition>
+    <web_service_version/>
+  </sys_ws_operation>
+
+  <!-- REST Resource: POST /session/end -->
+  <sys_ws_operation action="INSERT_OR_UPDATE">
+    <active>true</active>
+    <consumes_customized>false</consumes_customized>
+    <default_operation_uri>/session/end</default_operation_uri>
+    <enforces_acl/>
+    <http_method>POST</http_method>
+    <name>End Session</name>
+    <operation_script><![CDATA[(function process(/*RESTAPIRequest*/ request, /*RESTAPIResponse*/ response) {
+
+    var body = request.body.data;
+
+    if (!body || !body.session_id) {
+        response.setStatus(400);
+        response.setBody({ error: 'Missing required field: session_id' });
+        return;
+    }
+
+    var sessionId       = body.session_id;
+    var durationSeconds = body.duration_seconds || 0;
+
+    var gr = new GlideRecord('u_sp_search_session');
+    gr.addQuery('session_id', sessionId);
+    gr.setLimit(1);
+    gr.query();
+
+    if (!gr.next()) {
+        response.setStatus(404);
+        response.setBody({ error: 'Session not found: ' + sessionId });
+        return;
+    }
+
+    if (gr.getValue('outcome_classified') === '1') {
+        var existingOutcome = _getExistingOutcome(gr.getUniqueValue());
+        response.setStatus(200);
+        response.setBody({ session_id: sessionId, outcome: existingOutcome, status: 'already_classified' });
+        return;
+    }
+
+    if (durationSeconds > 0) {
+        gr.setValue('session_duration_seconds', durationSeconds);
+        gr.update();
+    }
+
+    var classifier = new x_sp_searchpulse.SearchPulseClassifier();
+    var outcome    = classifier.classifySession(gr);
+
+    gs.log('SearchPulse: session=' + sessionId + ' ended, outcome=' + outcome, 'SearchPulse');
+
+    response.setStatus(200);
+    response.setBody({ session_id: sessionId, outcome: outcome, status: 'classified' });
+
+    function _getExistingOutcome(sessionSysId) {
+        var outcomeGR = new GlideRecord('u_sp_search_outcome');
+        outcomeGR.addQuery('session', sessionSysId);
+        outcomeGR.orderByDesc('created');
+        outcomeGR.setLimit(1);
+        outcomeGR.query();
+        return outcomeGR.next() ? outcomeGR.getValue('outcome_type') : 'unknown';
+    }
+
+})(request, response);]]></operation_script>
+    <operation_uri>/session/end</operation_uri>
+    <produces_customized>false</produces_customized>
+    <relative_path>/session/end</relative_path>
+    <request_example/>
+    <requires_acl_authorization>false</requires_acl_authorization>
+    <requires_authentication>false</requires_authentication>
+    <requires_sns_authentication>false</requires_sns_authentication>
+    <short_description>Finalizes the session and triggers outcome classification.</short_description>
+    <sys_class_name>sys_ws_operation</sys_class_name>
+    <sys_id>a1b2c3d4e5f601234567890abcdef023</sys_id>
+    <sys_name>End Session</sys_name>
+    <sys_package display_value="SearchPulse Agent">x_sp_searchpulse</sys_package>
+    <sys_scope display_value="SearchPulse Agent">x_sp_searchpulse</sys_scope>
+    <sys_update_name>sys_ws_operation_a1b2c3d4e5f601234567890abcdef023</sys_update_name>
+    <web_service_definition display_value="SearchPulse Session API">a1b2c3d4e5f601234567890abcdef020</web_service_definition>
+    <web_service_version/>
+  </sys_ws_operation>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       PORTAL WIDGET: SearchPulse Search Widget
+       ═══════════════════════════════════════════════════════════════════ -->
+  <sp_widget action="INSERT_OR_UPDATE">
+    <category>search</category>
+    <client_script><![CDATA[function SearchPulseWidgetCtrl($scope, $rootScope, $timeout, $sce, spUtil) {
+    'use strict';
+
+    var c = this;
+
+    c.searchQuery     = '';
+    c.lastQuery       = '';
+    c.results         = [];
+    c.aiSummary       = null;
+    c.loading         = false;
+    c.searched        = false;
+    c.error           = false;
+    c.summaryFeedback = null;
+    c.debugMode       = false;
+
+    var sessionId      = null;
+    var sessionStarted = false;
+    var scrollTracked  = false;
+    var sessionStartMs = null;
+    var API_BASE       = '/api/x_sp_searchpulse';
+
+    c.$onInit = function() {
+        var returnFlag = sessionStorage.getItem('sp_searchpulse_return');
+        if (returnFlag) {
+            var prevSessionId = sessionStorage.getItem('sp_searchpulse_session_id');
+            if (prevSessionId) { sessionId = prevSessionId; _sendSignal('return_to_search', null); }
+            sessionStorage.removeItem('sp_searchpulse_return');
+        }
+        _attachScrollListener();
+    };
+
+    c.submitSearch = function() {
+        var query = (c.searchQuery || '').trim();
+        if (!query || query.length < 2) { return; }
+
+        var isReformulation = sessionStarted && query !== c.lastQuery;
+        if (isReformulation) { _sendSignal('query_reformulation', null); }
+
+        c.lastQuery       = query;
+        c.loading         = true;
+        c.error           = false;
+        c.searched        = true;
+        c.results         = [];
+        c.aiSummary       = null;
+        c.summaryFeedback = null;
+        scrollTracked     = false;
+
+        _startSession(query, isReformulation);
+
+        $scope.server.update().then(function(resp) {
+            c.loading = false;
+            if (resp.data.results) {
+                c.results   = resp.data.results;
+                c.aiSummary = resp.data.aiSummary ? $sce.trustAsHtml(resp.data.aiSummary) : null;
+            }
+        }, function() { c.loading = false; c.error = true; });
+    };
+
+    c.onQueryKeyUp = function($event) {
+        if ($event.keyCode === 13) { c.submitSearch(); }
+    };
+
+    c.onResultClick = function(result) {
+        if (!result || !result.sys_id) { return; }
+        _sendSignal('result_click', result.sys_id);
+        sessionStorage.setItem('sp_searchpulse_return',     '1');
+        sessionStorage.setItem('sp_searchpulse_session_id', sessionId || '');
+    };
+
+    c.sendSummaryFeedback = function(vote) {
+        if (c.summaryFeedback !== null) { return; }
+        c.summaryFeedback = vote;
+        _sendSignal(vote === 'up' ? 'summary_thumbs_up' : 'summary_thumbs_down', null);
+    };
+
+    c.getBadgeIconClass = function(iconName) {
+        var iconMap = { 'check-circle': 'fa-check-circle', 'refresh': 'fa-refresh', 'alert-triangle': 'fa-exclamation-triangle' };
+        return iconMap[iconName] || 'fa-tag';
+    };
+
+    function _startSession(query, isReformulation) {
+        if (!isReformulation) {
+            sessionId      = _generateSessionId();
+            sessionStarted = true;
+            sessionStartMs = Date.now();
+            _beacon(API_BASE + '/session/start', JSON.stringify({
+                session_id:  sessionId,
+                query:       query,
+                user_sys_id: window.NOW && NOW.user ? NOW.user.sys_id : null
+            }));
+            window.addEventListener('beforeunload', _endSession);
+        }
+    }
+
+    function _endSession() {
+        if (!sessionId) { return; }
+        var durationSeconds = sessionStartMs ? Math.floor((Date.now() - sessionStartMs) / 1000) : 0;
+        _beacon(API_BASE + '/session/end', JSON.stringify({ session_id: sessionId, duration_seconds: durationSeconds }));
+        sessionId = null; sessionStarted = false;
+    }
+
+    function _sendSignal(signalType, articleSysId) {
+        if (!sessionId) { return; }
+        var payload = { session_id: sessionId, signal_type: signalType };
+        if (articleSysId) { payload.article = articleSysId; }
+        _beacon(API_BASE + '/session/signal', JSON.stringify(payload));
+    }
+
+    function _attachScrollListener() {
+        var resultsSection = null;
+        function _onScroll() {
+            if (scrollTracked || !sessionId) { return; }
+            if (!resultsSection) { resultsSection = document.getElementById('sp-results-section'); }
+            if (!resultsSection) { return; }
+            var rect = resultsSection.getBoundingClientRect();
+            if (rect.top < window.innerHeight) {
+                scrollTracked = true;
+                _sendSignal('scroll_to_results', null);
+                window.removeEventListener('scroll', _onScroll);
+            }
+        }
+        window.addEventListener('scroll', _onScroll, { passive: true });
+    }
+
+    function _beacon(url, jsonPayload) {
+        try {
+            var blob = new Blob([jsonPayload], { type: 'application/json' });
+            if (!navigator.sendBeacon(url, blob)) { _xhrFallback(url, jsonPayload); }
+        } catch (e) { _xhrFallback(url, jsonPayload); }
+    }
+
+    function _xhrFallback(url, jsonPayload) {
+        try {
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', url, true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.setRequestHeader('X-UserToken', window.g_ck || '');
+            xhr.send(jsonPayload);
+        } catch (e) {}
+    }
+
+    function _generateSessionId() {
+        var arr = new Uint8Array(16);
+        if (window.crypto && window.crypto.getRandomValues) { window.crypto.getRandomValues(arr); }
+        else { for (var i = 0; i < 16; i++) { arr[i] = Math.floor(Math.random() * 256); } }
+        return Array.from(arr).map(function(b) { return ('00' + b.toString(16)).slice(-2); }).join('');
+    }
+}]]></client_script>
+    <css><![CDATA[.sp-searchpulse-widget{font-family:inherit;max-width:860px;margin:0 auto;padding:0 16px}.sp-searchpulse-widget .sp-search-bar{margin-bottom:20px}.sp-searchpulse-widget .sp-search-bar .input-group{box-shadow:0 2px 8px rgba(0,0,0,.1);border-radius:6px;overflow:hidden}.sp-searchpulse-widget .sp-search-bar .sp-search-input{height:48px;font-size:16px;border:1px solid #dde1e7;border-right:none;padding:10px 16px}.sp-searchpulse-widget .sp-search-bar .sp-search-btn{height:48px;padding:0 24px;font-size:15px;font-weight:600;background-color:#06c;border-color:#06c;border-radius:0 6px 6px 0}.sp-searchpulse-widget .sp-summary-panel{background:linear-gradient(135deg,#f0f7ff,#e8f4ff);border:1px solid #b3d4f5;border-radius:8px;padding:16px 20px;margin-bottom:20px}.sp-searchpulse-widget .sp-result-item{padding:16px 0;border-bottom:1px solid #f0f2f5;cursor:pointer}.sp-searchpulse-widget .sp-result-title{font-size:17px;font-weight:600;color:#06c;text-decoration:none}.sp-searchpulse-widget .sp-result-snippet{font-size:14px;color:#444;line-height:1.55;margin:0 0 8px}.sp-searchpulse-widget .sp-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:12px;text-transform:uppercase;letter-spacing:.03em;white-space:nowrap}.sp-searchpulse-widget .sp-badge.sp-badge-green{background-color:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7}.sp-searchpulse-widget .sp-badge.sp-badge-blue{background-color:#e3f2fd;color:#1565c0;border:1px solid #90caf9}.sp-searchpulse-widget .sp-badge.sp-badge-amber{background-color:#fff8e1;color:#e65100;border:1px solid #ffcc80}.sp-searchpulse-widget .sp-thumb-btn{background:transparent;border:1px solid #b3d4f5;color:#06c;border-radius:50%;width:32px;height:32px;padding:0;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}.sp-searchpulse-widget .sp-thumb-btn.active{background-color:#06c;color:#fff}]]></css>
+    <description>Enhanced Service Portal search widget with SearchPulse signal capture, reputation-based re-ranking, and trust badge display.</description>
+    <docs/>
+    <field_list/>
+    <has_preview>false</has_preview>
+    <id>searchpulse-search-widget</id>
+    <internal>false</internal>
+    <link/>
+    <name>SearchPulse Search Widget</name>
+    <option_schema>[{"name":"search_placeholder","label":"Search Placeholder Text","type":"string","default_value":"Search for answers..."},{"name":"max_results","label":"Maximum Results","type":"integer","default_value":10},{"name":"show_badges","label":"Show Reputation Badges","type":"boolean","default_value":true},{"name":"show_summary_feedback","label":"Show AI Summary Feedback Thumbs","type":"boolean","default_value":true}]</option_schema>
+    <public>true</public>
+    <roles/>
+    <script><![CDATA[(function() {
+    'use strict';
+
+    var query      = input && input.searchQuery ? input.searchQuery.trim() : '';
+    var maxResults = (options && options.max_results) ? parseInt(options.max_results, 10) : 10;
+    var kbCategory = (options && options.kb_category) ? options.kb_category : null;
+
+    data.results   = [];
+    data.aiSummary = null;
+
+    if (!query || query.length < 2) { return; }
+
+    try {
+        var rawResults = _searchKnowledge(query, maxResults, kbCategory);
+        if (!rawResults || rawResults.length === 0) { data.results = []; return; }
+
+        var rankingEngine = new x_sp_searchpulse.SearchPulseRankingEngine();
+        var reRanked      = rankingEngine.reRankResults(rawResults);
+
+        var sysIds       = reRanked.map(function(r) { return r.sys_id; });
+        var badgeService = new x_sp_searchpulse.SearchPulseBadgeService();
+        var badgeMap     = badgeService.getBadgesForArticles(sysIds);
+
+        for (var i = 0; i < reRanked.length; i++) {
+            reRanked[i].badge = badgeMap[reRanked[i].sys_id] || { show: false };
+        }
+
+        data.results   = reRanked;
+        data.aiSummary = _generateAISummaryStub(query, reRanked);
+
+    } catch (e) {
+        gs.logError('SearchPulse widget server error: ' + e.message, 'SearchPulse');
+        data.results = [];
+        data.error   = true;
+    }
+
+    function _searchKnowledge(q, limit, categoryId) {
+        var results = [];
+        var gr      = new GlideRecord('kb_knowledge');
+        gr.addActiveQuery();
+        gr.addQuery('workflow_state', 'published');
+        if (categoryId) { gr.addQuery('kb_category', categoryId); }
+        var qc = gr.addQuery('short_description', 'CONTAINS', q);
+        qc.addOrCondition('text', 'CONTAINS', q);
+        gr.setLimit(limit * 2);
+        gr.orderByDesc('sys_updated_on');
+        gr.query();
+
+        var baseScore = limit * 2;
+        while (gr.next()) {
+            var titleMatch = (gr.getValue('short_description') || '').toLowerCase().indexOf(q.toLowerCase()) !== -1;
+            var score      = titleMatch ? baseScore * 1.5 : baseScore;
+            baseScore--;
+            results.push({
+                sys_id:         gr.getUniqueValue(),
+                title:          gr.getDisplayValue('short_description'),
+                snippet:        _buildSnippet(gr.getValue('text'), q),
+                url:            '/kb_view.do?sysparm_article=' + gr.getValue('number'),
+                category:       gr.getDisplayValue('kb_category'),
+                updated:        _relativeDate(gr.getValue('sys_updated_on')),
+                score:          score,
+                original_score: score,
+                multiplier:     1.0
+            });
+        }
+        return results;
+    }
+
+    function _buildSnippet(fullText, q) {
+        if (!fullText) { return ''; }
+        var plain = fullText.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+        var idx   = plain.toLowerCase().indexOf(q.toLowerCase());
+        if (idx === -1) { return plain.substring(0, 160) + (plain.length > 160 ? '...' : ''); }
+        var start   = Math.max(0, idx - 60);
+        var end     = Math.min(plain.length, idx + q.length + 100);
+        var snippet = (start > 0 ? '...' : '') + plain.substring(start, end) + (end < plain.length ? '...' : '');
+        return snippet.replace(new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi'), '<strong>$1</strong>');
+    }
+
+    function _relativeDate(gdtValue) {
+        if (!gdtValue) { return ''; }
+        var diff = GlideDateTime.subtract(new GlideDateTime(gdtValue), new GlideDateTime());
+        var days = Math.abs(Math.floor(diff.getDayPart()));
+        if (days === 0)  { return 'today'; }
+        if (days === 1)  { return 'yesterday'; }
+        if (days <= 7)   { return days + ' days ago'; }
+        if (days <= 30)  { return Math.floor(days / 7) + ' weeks ago'; }
+        if (days <= 365) { return Math.floor(days / 30) + ' months ago'; }
+        return Math.floor(days / 365) + ' years ago';
+    }
+
+    function _generateAISummaryStub(q, results) {
+        if (!results || results.length === 0) { return null; }
+        var topTitles = results.slice(0, 3).map(function(r) { return '<em>' + r.title + '</em>'; }).join(', ');
+        return 'Based on your search for <strong>' + q + '</strong>, the most relevant articles are: ' + topTitles + '.';
+    }
+
+})();]]></script>
+    <servicenow>false</servicenow>
+    <sys_class_name>sp_widget</sys_class_name>
+    <sys_id>a1b2c3d4e5f601234567890abcdef030</sys_id>
+    <sys_name>SearchPulse Search Widget</sys_name>
+    <sys_package display_value="SearchPulse Agent">x_sp_searchpulse</sys_package>
+    <sys_policy/>
+    <sys_scope display_value="SearchPulse Agent">x_sp_searchpulse</sys_scope>
+    <sys_update_name>sp_widget_a1b2c3d4e5f601234567890abcdef030</sys_update_name>
+    <template><![CDATA[<div class="sp-searchpulse-widget" ng-controller="SearchPulseWidgetCtrl">
+  <div class="sp-search-bar">
+    <div class="input-group">
+      <span class="input-group-addon"><i class="fa fa-search"></i></span>
+      <input type="text" class="form-control sp-search-input"
+        placeholder="{{options.search_placeholder || 'Search for answers...'}}"
+        ng-model="c.searchQuery" ng-keyup="c.onQueryKeyUp($event)" autocomplete="off"/>
+      <span class="input-group-btn">
+        <button class="btn btn-primary sp-search-btn" ng-click="c.submitSearch()"
+          ng-disabled="!c.searchQuery || c.searchQuery.length < 2">Search</button>
+      </span>
+    </div>
+  </div>
+  <div class="text-center" ng-if="c.loading"><i class="fa fa-spinner fa-spin fa-2x"></i></div>
+  <div class="sp-summary-panel" ng-if="c.aiSummary && !c.loading">
+    <div style="font-weight:700;color:#0052a3;margin-bottom:8px"><i class="fa fa-magic"></i> AI Summary</div>
+    <div ng-bind-html="c.aiSummary"></div>
+    <div style="margin-top:12px;padding-top:12px;border-top:1px solid #c9dff5" ng-if="options.show_summary_feedback !== false">
+      <span style="font-size:13px;color:#555">Was this helpful? </span>
+      <button class="sp-thumb-btn" ng-class="{'active':c.summaryFeedback==='up'}" ng-click="c.sendSummaryFeedback('up')" ng-disabled="c.summaryFeedback !== null"><i class="fa fa-thumbs-up"></i></button>
+      <button class="sp-thumb-btn" ng-class="{'active':c.summaryFeedback==='down'}" ng-click="c.sendSummaryFeedback('down')" ng-disabled="c.summaryFeedback !== null"><i class="fa fa-thumbs-down"></i></button>
+      <span style="font-size:13px;color:#2e7d32;font-style:italic" ng-if="c.summaryFeedback !== null">Thanks!</span>
+    </div>
+  </div>
+  <div ng-if="c.results && c.results.length > 0 && !c.loading" id="sp-results-section">
+    <div style="font-size:13px;color:#6c757d;margin-bottom:12px">{{c.results.length}} result(s) for <strong>"{{c.lastQuery}}"</strong></div>
+    <ul class="list-unstyled">
+      <li class="sp-result-item" ng-repeat="result in c.results track by result.sys_id" ng-click="c.onResultClick(result)">
+        <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px">
+          <a class="sp-result-title" ng-href="{{result.url}}" ng-bind="result.title"></a>
+          <span class="sp-badge sp-badge-{{result.badge.color}}" ng-if="result.badge && result.badge.show && options.show_badges !== false">
+            <i class="fa" ng-class="c.getBadgeIconClass(result.badge.icon)"></i> {{result.badge.label}}
+          </span>
+        </div>
+        <p style="font-size:14px;color:#444;margin:0 0 8px" ng-if="result.snippet" ng-bind-html="result.snippet"></p>
+        <div style="font-size:12px;color:#888">
+          <span ng-if="result.category"><i class="fa fa-folder-open-o"></i> {{result.category}} &nbsp;</span>
+          <span ng-if="result.updated"><i class="fa fa-clock-o"></i> {{result.updated}}</span>
+        </div>
+      </li>
+    </ul>
+  </div>
+  <div class="text-center" style="padding:48px 20px" ng-if="c.searched && (!c.results || c.results.length===0) && !c.loading">
+    <i class="fa fa-search fa-3x" style="color:#c0c6d0;display:block;margin-bottom:16px"></i>
+    <p>No results found for <strong>"{{c.lastQuery}}"</strong></p>
+  </div>
+  <div ng-if="c.error"><div class="alert alert-warning"><i class="fa fa-exclamation-triangle"></i> Search temporarily unavailable.</div></div>
+</div>]]></template>
+  </sp_widget>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       PORTAL WIDGET: SearchPulse Badge Widget
+       ═══════════════════════════════════════════════════════════════════ -->
+  <sp_widget action="INSERT_OR_UPDATE">
+    <category>search</category>
+    <client_script><![CDATA[function SearchPulseBadgeCtrl($scope) {
+    'use strict';
+    var c = this;
+    c.badge           = $scope.data.badge           || { show: false };
+    c.reputationScore = $scope.data.reputationScore || 50;
+    c.trend           = $scope.data.trend           || 'stable';
+    c.getIconClass = function() {
+        var iconMap = { 'check-circle': 'fa-check-circle', 'refresh': 'fa-refresh', 'alert-triangle': 'fa-exclamation-triangle' };
+        return iconMap[c.badge.icon] || 'fa-tag';
+    };
+}]]></client_script>
+    <css><![CDATA[.sp-badge-widget{display:inline-block}.sp-badge-widget .sp-inline-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:4px 10px;border-radius:14px;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}.sp-badge-widget .sp-badge-color-green{background-color:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7}.sp-badge-widget .sp-badge-color-blue{background-color:#e3f2fd;color:#1565c0;border:1px solid #90caf9}.sp-badge-widget .sp-badge-color-amber{background-color:#fff8e1;color:#e65100;border:1px solid #ffcc80}.sp-badge-widget .sp-trend-up{color:#2e7d32}.sp-badge-widget .sp-trend-down{color:#c62828}]]></css>
+    <description>Standalone trust badge component for KB article view pages. Shows Frequently Helpful, Updated Recently, or May Be Outdated based on reputation score.</description>
+    <docs/>
+    <field_list/>
+    <has_preview>false</has_preview>
+    <id>searchpulse-badge-widget</id>
+    <internal>false</internal>
+    <link/>
+    <name>SearchPulse Badge Widget</name>
+    <option_schema>[{"name":"article_sys_id","label":"Article sys_id","type":"string","default_value":""},{"name":"show_score","label":"Show Numeric Score","type":"boolean","default_value":false},{"name":"show_trend","label":"Show Score Trend Arrow","type":"boolean","default_value":true}]</option_schema>
+    <public>true</public>
+    <roles/>
+    <script><![CDATA[(function() {
+    'use strict';
+
+    var articleSysId = (options && options.article_sys_id) ? options.article_sys_id : null;
+
+    if (!articleSysId && $sp) {
+        var pageRecord = $sp.getRecord();
+        if (pageRecord && pageRecord.getTableName() === 'kb_knowledge') {
+            articleSysId = pageRecord.getUniqueValue();
+        }
+    }
+
+    data.badge           = { show: false };
+    data.reputationScore = 50;
+    data.trend           = 'stable';
+
+    if (!articleSysId) { return; }
+
+    try {
+        var badgeService     = new x_sp_searchpulse.SearchPulseBadgeService();
+        data.badge           = badgeService.getBadge(articleSysId);
+        var rankingEngine    = new x_sp_searchpulse.SearchPulseRankingEngine();
+        var repInfo          = rankingEngine.getArticleReputationInfo(articleSysId);
+        data.reputationScore = repInfo.score;
+        data.trend           = repInfo.score_trend || 'stable';
+    } catch (e) {
+        gs.logError('SearchPulse badge widget error: ' + e.message, 'SearchPulse');
+    }
+})();]]></script>
+    <servicenow>false</servicenow>
+    <sys_class_name>sp_widget</sys_class_name>
+    <sys_id>a1b2c3d4e5f601234567890abcdef031</sys_id>
+    <sys_name>SearchPulse Badge Widget</sys_name>
+    <sys_package display_value="SearchPulse Agent">x_sp_searchpulse</sys_package>
+    <sys_policy/>
+    <sys_scope display_value="SearchPulse Agent">x_sp_searchpulse</sys_scope>
+    <sys_update_name>sp_widget_a1b2c3d4e5f601234567890abcdef031</sys_update_name>
+    <template><![CDATA[<div class="sp-badge-widget" ng-controller="SearchPulseBadgeCtrl">
+  <span class="sp-inline-badge sp-badge-color-{{c.badge.color}}" ng-if="c.badge && c.badge.show" title="Reputation score: {{c.reputationScore}}">
+    <i class="fa" ng-class="c.getIconClass()"></i>
+    <span>{{c.badge.label}}</span>
+    <span ng-if="options.show_trend && c.trend !== 'stable'">
+      <i class="fa" ng-class="c.trend === 'rising' ? 'fa-arrow-up sp-trend-up' : 'fa-arrow-down sp-trend-down'"></i>
+    </span>
+    <span ng-if="options.show_score" style="background:rgba(0,0,0,.1);border-radius:8px;padding:0 6px;font-size:10px">{{c.reputationScore}}</span>
+  </span>
+</div>]]></template>
+  </sp_widget>
+
+</unload>
