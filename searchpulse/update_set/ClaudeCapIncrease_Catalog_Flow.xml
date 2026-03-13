@@ -1,0 +1,1278 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<unload unload_date="2026-03-14">
+<!--
+================================================================================
+  Claude Cap Increase Request - Catalog + Approval Flow Update Set
+  Name   : ClaudeCapIncrease_Catalog_Flow
+  Scope  : global
+  Version: 1.0.0
+
+  IMPORT STEPS:
+  1. System Update Sets > Retrieved Update Sets
+  2. "Import Update Set from XML" - upload this file
+  3. Preview Update Set (resolve conflicts if any)
+  4. Commit Update Set
+
+  COMPONENTS:
+  - Catalog Category    : Claude App Management
+  - Catalog Item        : Claude Cap Increase Request
+  - Catalog Variables   :
+      * Type of Request  (Choice: Claude | Claude Code)
+      * Claude Tier      (Choice: Tier 1 | Tier 2 | Tier 3) [visible when Claude selected]
+      * Claude Code Tier (Choice: A1 | A2 | A3)             [visible when Claude Code selected]
+  - Script Include      : ClaudeCapIncreaseHelper
+      * findVPInChain(userSysId) - walks manager chain until VP title found
+      * updateRITMOnApproval(ritmSysId, approverSysId, comments, tier, requestType)
+      * updateRITMOnRejection(ritmSysId, approverSysId, comments, tier, requestType)
+  - Flow Designer Flow  : Claude Cap Increase Approval Flow
+      * Trigger: Service Catalog (RITM created for this catalog item)
+      * Step 1: Get Catalog Variables
+      * Step 2: Script - Find VP approver (walk manager chain)
+      * Step 3: Ask VP for Approval (mandatory comments)
+      * Step 4a (Approved): Script - Update RITM as Approved
+      * Step 4b (Rejected): Script - Update RITM as Rejected
+
+  APPROVAL ROUTING LOGIC:
+  ┌──────────────────────────────────────────────────────────┐
+  │  Max limit for Claude app = $300                         │
+  │  Submitted request → look up requested_for's manager     │
+  │  Walk manager chain until user with title CONTAINS 'VP'  │
+  │  Send approval to that VP                                │
+  │  If no VP found after 10 hops → fallback to sys_admin   │
+  └──────────────────────────────────────────────────────────┘
+
+  ON APPROVAL:
+  - RITM work_notes updated with approval details
+  - RITM state set to Closed Complete (3)
+  - RITM approval field set to "approved"
+
+  ON REJECTION:
+  - RITM work_notes updated with rejection details
+  - RITM state set to Closed Incomplete (4)
+  - RITM approval field set to "rejected"
+================================================================================
+-->
+
+<!-- ============================================================ -->
+<!--  UPDATE SET RECORD                                            -->
+<!-- ============================================================ -->
+<sys_update_set action="INSERT_OR_UPDATE">
+  <application display_value="Global">global</application>
+  <description>Claude Cap Increase Catalog Item with dynamic tier dropdowns and VP escalation approval flow. Max cap $300. Supports Claude (Tier 1/2/3) and Claude Code (A1/A2/A3).</description>
+  <is_default>false</is_default>
+  <name>Claude Cap Increase - Catalog and Approval Flow</name>
+  <origin_sys_id/>
+  <release_date/>
+  <state>complete</state>
+  <sys_class_name>sys_update_set</sys_class_name>
+  <sys_id>cla0000000000000000000000uset001</sys_id>
+  <sys_name>Claude Cap Increase - Catalog and Approval Flow</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>sys_update_set_cla0000000000000000000000uset001</sys_update_name>
+</sys_update_set>
+
+<!-- ============================================================ -->
+<!--  SERVICE CATALOG CATEGORY                                     -->
+<!-- ============================================================ -->
+<sc_category action="INSERT_OR_UPDATE">
+  <active>true</active>
+  <description>Requests related to Claude AI application management, cap increases, and tier upgrades.</description>
+  <full_description>Submit requests to manage your Claude or Claude Code application entitlements. This includes cap increase requests up to the $300 maximum limit.</full_description>
+  <homepage_renderer/>
+  <icon/>
+  <image/>
+  <location/>
+  <mobile_hide_description>false</mobile_hide_description>
+  <mobile_picture/>
+  <mobile_subcategory_render_type>list</mobile_subcategory_render_type>
+  <order>200</order>
+  <parent/>
+  <roles/>
+  <sc_catalog display_value="Service Catalog">e0d08b13c3330100c8b837659bba8fb4</sc_catalog>
+  <sys_class_name>sc_category</sys_class_name>
+  <sys_id>cla0000000000000000000000cat0001</sys_id>
+  <sys_name>Claude App Management</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>sc_category_cla0000000000000000000000cat0001</sys_update_name>
+  <title>Claude App Management</title>
+</sc_category>
+
+<!-- ============================================================ -->
+<!--  SERVICE CATALOG ITEM                                         -->
+<!-- ============================================================ -->
+<sc_cat_item action="INSERT_OR_UPDATE">
+  <active>true</active>
+  <availability>on_both</availability>
+  <billable>false</billable>
+  <category display_value="Claude App Management">cla0000000000000000000000cat0001</category>
+  <cost>0</cost>
+  <custom_cart/>
+  <delivery_plan/>
+  <delivery_plan_script/>
+  <delivery_time/>
+  <description>&lt;p&gt;Use this form to request an increase to your &lt;strong&gt;Claude&lt;/strong&gt; or &lt;strong&gt;Claude Code&lt;/strong&gt; application cap.&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;The current maximum cap for the Claude app is &lt;strong&gt;$300&lt;/strong&gt;.&lt;/li&gt;
+  &lt;li&gt;Select your &lt;strong&gt;Type of Request&lt;/strong&gt; (Claude or Claude Code).&lt;/li&gt;
+  &lt;li&gt;Select the appropriate &lt;strong&gt;tier&lt;/strong&gt; for your request.&lt;/li&gt;
+  &lt;li&gt;Your request will be routed to your &lt;strong&gt;VP approver&lt;/strong&gt; via your manager chain.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Once approved by a VP, your RITM will be updated accordingly.&lt;/p&gt;</description>
+  <entitlement_script/>
+  <fulfillment_instructions>Route this RITM through the Claude Cap Increase Approval Flow. The flow will walk the requested-for user's manager chain to find a VP and send the approval request to that VP.</fulfillment_instructions>
+  <group/>
+  <hide_sp>false</hide_sp>
+  <icon/>
+  <ignore_price>false</ignore_price>
+  <image/>
+  <list_price>0</list_price>
+  <location/>
+  <mandatory_attachment>false</mandatory_attachment>
+  <meta/>
+  <mobile_hide_price>false</mobile_hide_price>
+  <mobile_picture/>
+  <mobile_subtitle>Request a tier upgrade for Claude or Claude Code - VP approval required</mobile_subtitle>
+  <model/>
+  <name>Claude Cap Increase Request</name>
+  <no_attachment_v2>false</no_attachment_v2>
+  <no_cart>false</no_cart>
+  <no_delivery_time_v2>false</no_delivery_time_v2>
+  <no_order>false</no_order>
+  <no_order_now>false</no_order_now>
+  <no_proceed_checkout>false</no_proceed_checkout>
+  <no_quantity>true</no_quantity>
+  <no_search>false</no_search>
+  <no_wishlist_v2>false</no_wishlist_v2>
+  <omit_price>true</omit_price>
+  <order>100</order>
+  <owner/>
+  <picture/>
+  <preview/>
+  <published_ref/>
+  <request_method/>
+  <roles/>
+  <sc_catalogs display_value="Service Catalog">e0d08b13c3330100c8b837659bba8fb4</sc_catalogs>
+  <sc_ic_item_staging/>
+  <sc_ic_version/>
+  <short_description>Request a cap increase for your Claude or Claude Code application (max $300)</short_description>
+  <show_delivery_time>false</show_delivery_time>
+  <show_price>false</show_price>
+  <show_wishlist>false</show_wishlist>
+  <start_closed>false</start_closed>
+  <sys_class_name>sc_cat_item</sys_class_name>
+  <sys_id>cla0000000000000000000000itm0001</sys_id>
+  <sys_name>Claude Cap Increase Request</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>sc_cat_item_cla0000000000000000000000itm0001</sys_update_name>
+  <template/>
+  <type>item</type>
+  <use_sc_layout>true</use_sc_layout>
+  <vendor/>
+  <visible_bundle>true</visible_bundle>
+  <visible_guide>true</visible_guide>
+  <visible_standalone>true</visible_standalone>
+  <workflow display_value=""/>
+</sc_cat_item>
+
+<!-- ============================================================ -->
+<!--  CATALOG VARIABLE 1: Type of Request (Choice Dropdown)       -->
+<!--  Order 100 - Always visible                                   -->
+<!--  Values: claude | claude_code                                 -->
+<!-- ============================================================ -->
+<item_option_new action="INSERT_OR_UPDATE">
+  <active>true</active>
+  <attributes/>
+  <cat_item display_value="Claude Cap Increase Request">cla0000000000000000000000itm0001</cat_item>
+  <choice_direction>down</choice_direction>
+  <choice_field/>
+  <choice_table/>
+  <create_roles/>
+  <default_value/>
+  <delete_roles/>
+  <dependent/>
+  <dependent_on_field/>
+  <description>Select whether this request is for Claude or Claude Code.</description>
+  <do_not_clone>false</do_not_clone>
+  <dynamic_default_value/>
+  <dynamic_ref_qual/>
+  <dynamic_value_field/>
+  <dynamic_value_table/>
+  <field_label>Type of Request</field_label>
+  <help_text>Choose Claude for the standard Claude app, or Claude Code for the coding-focused variant.</help_text>
+  <hidden>false</hidden>
+  <ignore_ref_qual_on_create>false</ignore_ref_qual_on_create>
+  <include_none>true</include_none>
+  <lookup_label/>
+  <lookup_table/>
+  <lookup_unique>false</lookup_unique>
+  <lookup_value/>
+  <macro/>
+  <mandatory>true</mandatory>
+  <max_length>40</max_length>
+  <name>type_of_request</name>
+  <no_sort>false</no_sort>
+  <on_change_link/>
+  <order>100</order>
+  <parm1/>
+  <parm2/>
+  <question_text>Select the type of request:</question_text>
+  <read_roles/>
+  <rec_lookup_field/>
+  <rec_lookup_ref_qual/>
+  <rec_lookup_table/>
+  <record_current_row>false</record_current_row>
+  <reference/>
+  <reference_qual/>
+  <render_label>true</render_label>
+  <sc_item_option/>
+  <show_help>true</show_help>
+  <show_help_on_load>false</show_help_on_load>
+  <sp_widget/>
+  <summary_macro/>
+  <type>6</type>
+  <use_dynamic_default>false</use_dynamic_default>
+  <use_reference_qualifier>simple</use_reference_qualifier>
+  <variable_set/>
+  <visible_bundle>true</visible_bundle>
+  <visible_guide>true</visible_guide>
+  <visible_standalone>true</visible_standalone>
+  <write_roles/>
+  <sys_class_name>item_option_new</sys_class_name>
+  <sys_id>cla0000000000000000000000var0001</sys_id>
+  <sys_name>Claude Cap Increase Request type_of_request</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>item_option_new_cla0000000000000000000000var0001</sys_update_name>
+</item_option_new>
+
+<!-- Choice: Claude -->
+<question_choice action="INSERT_OR_UPDATE">
+  <inactive>false</inactive>
+  <order>100</order>
+  <question display_value="Type of Request">cla0000000000000000000000var0001</question>
+  <sys_class_name>question_choice</sys_class_name>
+  <sys_id>cla0000000000000000000000cho0001</sys_id>
+  <sys_name>Claude</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>question_choice_cla0000000000000000000000cho0001</sys_update_name>
+  <text>Claude</text>
+  <value>claude</value>
+</question_choice>
+
+<!-- Choice: Claude Code -->
+<question_choice action="INSERT_OR_UPDATE">
+  <inactive>false</inactive>
+  <order>200</order>
+  <question display_value="Type of Request">cla0000000000000000000000var0001</question>
+  <sys_class_name>question_choice</sys_class_name>
+  <sys_id>cla0000000000000000000000cho0002</sys_id>
+  <sys_name>Claude Code</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>question_choice_cla0000000000000000000000cho0002</sys_update_name>
+  <text>Claude Code</text>
+  <value>claude_code</value>
+</question_choice>
+
+<!-- ============================================================ -->
+<!--  CATALOG VARIABLE 2: Claude Tier (Choice Dropdown)           -->
+<!--  Order 200 - Visible only when Type of Request = "claude"    -->
+<!--  Controlled by UI Policy (below)                             -->
+<!--  Values: tier_1 | tier_2 | tier_3                           -->
+<!-- ============================================================ -->
+<item_option_new action="INSERT_OR_UPDATE">
+  <active>true</active>
+  <attributes/>
+  <cat_item display_value="Claude Cap Increase Request">cla0000000000000000000000itm0001</cat_item>
+  <choice_direction>down</choice_direction>
+  <choice_field/>
+  <choice_table/>
+  <create_roles/>
+  <default_value/>
+  <delete_roles/>
+  <dependent/>
+  <dependent_on_field/>
+  <description>Select the tier level for your Claude application request.</description>
+  <do_not_clone>false</do_not_clone>
+  <dynamic_default_value/>
+  <dynamic_ref_qual/>
+  <dynamic_value_field/>
+  <dynamic_value_table/>
+  <field_label>Claude Tier</field_label>
+  <help_text>Tier 1 is the entry-level, Tier 2 is mid-level, and Tier 3 is the highest usage tier for Claude.</help_text>
+  <hidden>true</hidden>
+  <ignore_ref_qual_on_create>false</ignore_ref_qual_on_create>
+  <include_none>true</include_none>
+  <lookup_label/>
+  <lookup_table/>
+  <lookup_unique>false</lookup_unique>
+  <lookup_value/>
+  <macro/>
+  <mandatory>false</mandatory>
+  <max_length>40</max_length>
+  <name>claude_tier</name>
+  <no_sort>false</no_sort>
+  <on_change_link/>
+  <order>200</order>
+  <parm1/>
+  <parm2/>
+  <question_text>Select your Claude tier:</question_text>
+  <read_roles/>
+  <rec_lookup_field/>
+  <rec_lookup_ref_qual/>
+  <rec_lookup_table/>
+  <record_current_row>false</record_current_row>
+  <reference/>
+  <reference_qual/>
+  <render_label>true</render_label>
+  <sc_item_option/>
+  <show_help>true</show_help>
+  <show_help_on_load>false</show_help_on_load>
+  <sp_widget/>
+  <summary_macro/>
+  <type>6</type>
+  <use_dynamic_default>false</use_dynamic_default>
+  <use_reference_qualifier>simple</use_reference_qualifier>
+  <variable_set/>
+  <visible_bundle>true</visible_bundle>
+  <visible_guide>true</visible_guide>
+  <visible_standalone>true</visible_standalone>
+  <write_roles/>
+  <sys_class_name>item_option_new</sys_class_name>
+  <sys_id>cla0000000000000000000000var0002</sys_id>
+  <sys_name>Claude Cap Increase Request claude_tier</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>item_option_new_cla0000000000000000000000var0002</sys_update_name>
+</item_option_new>
+
+<!-- Choice: Tier 1 (Claude) -->
+<question_choice action="INSERT_OR_UPDATE">
+  <inactive>false</inactive>
+  <order>100</order>
+  <question display_value="Claude Tier">cla0000000000000000000000var0002</question>
+  <sys_class_name>question_choice</sys_class_name>
+  <sys_id>cla0000000000000000000000cho0003</sys_id>
+  <sys_name>Tier 1</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>question_choice_cla0000000000000000000000cho0003</sys_update_name>
+  <text>Tier 1</text>
+  <value>tier_1</value>
+</question_choice>
+
+<!-- Choice: Tier 2 (Claude) -->
+<question_choice action="INSERT_OR_UPDATE">
+  <inactive>false</inactive>
+  <order>200</order>
+  <question display_value="Claude Tier">cla0000000000000000000000var0002</question>
+  <sys_class_name>question_choice</sys_class_name>
+  <sys_id>cla0000000000000000000000cho0004</sys_id>
+  <sys_name>Tier 2</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>question_choice_cla0000000000000000000000cho0004</sys_update_name>
+  <text>Tier 2</text>
+  <value>tier_2</value>
+</question_choice>
+
+<!-- Choice: Tier 3 (Claude) -->
+<question_choice action="INSERT_OR_UPDATE">
+  <inactive>false</inactive>
+  <order>300</order>
+  <question display_value="Claude Tier">cla0000000000000000000000var0002</question>
+  <sys_class_name>question_choice</sys_class_name>
+  <sys_id>cla0000000000000000000000cho0005</sys_id>
+  <sys_name>Tier 3</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>question_choice_cla0000000000000000000000cho0005</sys_update_name>
+  <text>Tier 3</text>
+  <value>tier_3</value>
+</question_choice>
+
+<!-- ============================================================ -->
+<!--  CATALOG VARIABLE 3: Claude Code Tier (Choice Dropdown)      -->
+<!--  Order 300 - Visible only when Type of Request = "claude_code" -->
+<!--  Controlled by UI Policy (below)                             -->
+<!--  Values: a1 | a2 | a3                                        -->
+<!-- ============================================================ -->
+<item_option_new action="INSERT_OR_UPDATE">
+  <active>true</active>
+  <attributes/>
+  <cat_item display_value="Claude Cap Increase Request">cla0000000000000000000000itm0001</cat_item>
+  <choice_direction>down</choice_direction>
+  <choice_field/>
+  <choice_table/>
+  <create_roles/>
+  <default_value/>
+  <delete_roles/>
+  <dependent/>
+  <dependent_on_field/>
+  <description>Select the tier level for your Claude Code application request.</description>
+  <do_not_clone>false</do_not_clone>
+  <dynamic_default_value/>
+  <dynamic_ref_qual/>
+  <dynamic_value_field/>
+  <dynamic_value_table/>
+  <field_label>Claude Code Tier</field_label>
+  <help_text>A1 is entry-level, A2 is mid-level, and A3 is the highest usage tier for Claude Code.</help_text>
+  <hidden>true</hidden>
+  <ignore_ref_qual_on_create>false</ignore_ref_qual_on_create>
+  <include_none>true</include_none>
+  <lookup_label/>
+  <lookup_table/>
+  <lookup_unique>false</lookup_unique>
+  <lookup_value/>
+  <macro/>
+  <mandatory>false</mandatory>
+  <max_length>40</max_length>
+  <name>claude_code_tier</name>
+  <no_sort>false</no_sort>
+  <on_change_link/>
+  <order>300</order>
+  <parm1/>
+  <parm2/>
+  <question_text>Select your Claude Code tier:</question_text>
+  <read_roles/>
+  <rec_lookup_field/>
+  <rec_lookup_ref_qual/>
+  <rec_lookup_table/>
+  <record_current_row>false</record_current_row>
+  <reference/>
+  <reference_qual/>
+  <render_label>true</render_label>
+  <sc_item_option/>
+  <show_help>true</show_help>
+  <show_help_on_load>false</show_help_on_load>
+  <sp_widget/>
+  <summary_macro/>
+  <type>6</type>
+  <use_dynamic_default>false</use_dynamic_default>
+  <use_reference_qualifier>simple</use_reference_qualifier>
+  <variable_set/>
+  <visible_bundle>true</visible_bundle>
+  <visible_guide>true</visible_guide>
+  <visible_standalone>true</visible_standalone>
+  <write_roles/>
+  <sys_class_name>item_option_new</sys_class_name>
+  <sys_id>cla0000000000000000000000var0003</sys_id>
+  <sys_name>Claude Cap Increase Request claude_code_tier</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>item_option_new_cla0000000000000000000000var0003</sys_update_name>
+</item_option_new>
+
+<!-- Choice: A1 (Claude Code) -->
+<question_choice action="INSERT_OR_UPDATE">
+  <inactive>false</inactive>
+  <order>100</order>
+  <question display_value="Claude Code Tier">cla0000000000000000000000var0003</question>
+  <sys_class_name>question_choice</sys_class_name>
+  <sys_id>cla0000000000000000000000cho0006</sys_id>
+  <sys_name>A1</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>question_choice_cla0000000000000000000000cho0006</sys_update_name>
+  <text>A1</text>
+  <value>a1</value>
+</question_choice>
+
+<!-- Choice: A2 (Claude Code) -->
+<question_choice action="INSERT_OR_UPDATE">
+  <inactive>false</inactive>
+  <order>200</order>
+  <question display_value="Claude Code Tier">cla0000000000000000000000var0003</question>
+  <sys_class_name>question_choice</sys_class_name>
+  <sys_id>cla0000000000000000000000cho0007</sys_id>
+  <sys_name>A2</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>question_choice_cla0000000000000000000000cho0007</sys_update_name>
+  <text>A2</text>
+  <value>a2</value>
+</question_choice>
+
+<!-- Choice: A3 (Claude Code) -->
+<question_choice action="INSERT_OR_UPDATE">
+  <inactive>false</inactive>
+  <order>300</order>
+  <question display_value="Claude Code Tier">cla0000000000000000000000var0003</question>
+  <sys_class_name>question_choice</sys_class_name>
+  <sys_id>cla0000000000000000000000cho0008</sys_id>
+  <sys_name>A3</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>question_choice_cla0000000000000000000000cho0008</sys_update_name>
+  <text>A3</text>
+  <value>a3</value>
+</question_choice>
+
+<!-- ============================================================ -->
+<!--  UI POLICY 1: Show Claude Tier when Type = "claude"          -->
+<!--  Hides/shows claude_tier variable based on type_of_request   -->
+<!-- ============================================================ -->
+<catalog_ui_policy action="INSERT_OR_UPDATE">
+  <active>true</active>
+  <applies_always>false</applies_always>
+  <applies_catalog>true</applies_catalog>
+  <applies_catalog_item>true</applies_catalog_item>
+  <applies_sc_layout>true</applies_sc_layout>
+  <catalog_item display_value="Claude Cap Increase Request">cla0000000000000000000000itm0001</catalog_item>
+  <conditions>
+    <condition>
+      <name>type_of_request</name>
+      <operator>=</operator>
+      <value>claude</value>
+    </condition>
+  </conditions>
+  <on_load>true</on_load>
+  <order>100</order>
+  <reverse_if_false>true</reverse_if_false>
+  <run_scripts>true</run_scripts>
+  <short_description>Show Claude Tier dropdown when Type of Request is Claude</short_description>
+  <sys_class_name>catalog_ui_policy</sys_class_name>
+  <sys_id>cla0000000000000000000000uip0001</sys_id>
+  <sys_name>Claude Cap Increase Request - Show Claude Tier</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>catalog_ui_policy_cla0000000000000000000000uip0001</sys_update_name>
+</catalog_ui_policy>
+
+<!-- UI Policy Action 1a: Make claude_tier visible + mandatory when claude selected -->
+<catalog_ui_policy_action action="INSERT_OR_UPDATE">
+  <catalog_variable display_value="Claude Tier">cla0000000000000000000000var0002</catalog_variable>
+  <mandatory>true</mandatory>
+  <readonly>false</readonly>
+  <sys_class_name>catalog_ui_policy_action</sys_class_name>
+  <sys_id>cla0000000000000000000000upa0001</sys_id>
+  <sys_name>Claude Cap Increase Request - Show Claude Tier - claude_tier</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>catalog_ui_policy_action_cla0000000000000000000000upa0001</sys_update_name>
+  <ui_policy display_value="Show Claude Tier dropdown when Type of Request is Claude">cla0000000000000000000000uip0001</ui_policy>
+  <visible>true</visible>
+</catalog_ui_policy_action>
+
+<!-- UI Policy Action 1b: Hide claude_code_tier when claude selected -->
+<catalog_ui_policy_action action="INSERT_OR_UPDATE">
+  <catalog_variable display_value="Claude Code Tier">cla0000000000000000000000var0003</catalog_variable>
+  <mandatory>false</mandatory>
+  <readonly>false</readonly>
+  <sys_class_name>catalog_ui_policy_action</sys_class_name>
+  <sys_id>cla0000000000000000000000upa0002</sys_id>
+  <sys_name>Claude Cap Increase Request - Show Claude Tier - claude_code_tier</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>catalog_ui_policy_action_cla0000000000000000000000upa0002</sys_update_name>
+  <ui_policy display_value="Show Claude Tier dropdown when Type of Request is Claude">cla0000000000000000000000uip0001</ui_policy>
+  <visible>false</visible>
+</catalog_ui_policy_action>
+
+<!-- ============================================================ -->
+<!--  UI POLICY 2: Show Claude Code Tier when Type = "claude_code" -->
+<!-- ============================================================ -->
+<catalog_ui_policy action="INSERT_OR_UPDATE">
+  <active>true</active>
+  <applies_always>false</applies_always>
+  <applies_catalog>true</applies_catalog>
+  <applies_catalog_item>true</applies_catalog_item>
+  <applies_sc_layout>true</applies_sc_layout>
+  <catalog_item display_value="Claude Cap Increase Request">cla0000000000000000000000itm0001</catalog_item>
+  <conditions>
+    <condition>
+      <name>type_of_request</name>
+      <operator>=</operator>
+      <value>claude_code</value>
+    </condition>
+  </conditions>
+  <on_load>true</on_load>
+  <order>200</order>
+  <reverse_if_false>true</reverse_if_false>
+  <run_scripts>true</run_scripts>
+  <short_description>Show Claude Code Tier dropdown when Type of Request is Claude Code</short_description>
+  <sys_class_name>catalog_ui_policy</sys_class_name>
+  <sys_id>cla0000000000000000000000uip0002</sys_id>
+  <sys_name>Claude Cap Increase Request - Show Claude Code Tier</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>catalog_ui_policy_cla0000000000000000000000uip0002</sys_update_name>
+</catalog_ui_policy>
+
+<!-- UI Policy Action 2a: Make claude_code_tier visible + mandatory when claude_code selected -->
+<catalog_ui_policy_action action="INSERT_OR_UPDATE">
+  <catalog_variable display_value="Claude Code Tier">cla0000000000000000000000var0003</catalog_variable>
+  <mandatory>true</mandatory>
+  <readonly>false</readonly>
+  <sys_class_name>catalog_ui_policy_action</sys_class_name>
+  <sys_id>cla0000000000000000000000upa0003</sys_id>
+  <sys_name>Claude Cap Increase Request - Show Claude Code Tier - claude_code_tier</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>catalog_ui_policy_action_cla0000000000000000000000upa0003</sys_update_name>
+  <ui_policy display_value="Show Claude Code Tier dropdown when Type of Request is Claude Code">cla0000000000000000000000uip0002</ui_policy>
+  <visible>true</visible>
+</catalog_ui_policy_action>
+
+<!-- UI Policy Action 2b: Hide claude_tier when claude_code selected -->
+<catalog_ui_policy_action action="INSERT_OR_UPDATE">
+  <catalog_variable display_value="Claude Tier">cla0000000000000000000000var0002</catalog_variable>
+  <mandatory>false</mandatory>
+  <readonly>false</readonly>
+  <sys_class_name>catalog_ui_policy_action</sys_class_name>
+  <sys_id>cla0000000000000000000000upa0004</sys_id>
+  <sys_name>Claude Cap Increase Request - Show Claude Code Tier - claude_tier</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>catalog_ui_policy_action_cla0000000000000000000000upa0004</sys_update_name>
+  <ui_policy display_value="Show Claude Code Tier dropdown when Type of Request is Claude Code">cla0000000000000000000000uip0002</ui_policy>
+  <visible>false</visible>
+</catalog_ui_policy_action>
+
+<!-- ============================================================ -->
+<!--  SCRIPT INCLUDE: ClaudeCapIncreaseHelper                      -->
+<!--                                                               -->
+<!--  Methods:                                                      -->
+<!--  - findVPApprover(userSysId)                                   -->
+<!--      Walks the manager chain of userSysId upward.             -->
+<!--      Returns sys_id of first user whose title CONTAINS 'VP'  -->
+<!--      Falls back to sys_id of System Administrator if no VP    -->
+<!--      found within 10 hops.                                    -->
+<!--  - updateRITMOnApproval(ritmSysId, approverSysId,             -->
+<!--                          comments, tier, requestType)         -->
+<!--  - updateRITMOnRejection(ritmSysId, approverSysId,            -->
+<!--                           comments, tier, requestType)        -->
+<!-- ============================================================ -->
+<sys_script_include action="INSERT_OR_UPDATE">
+  <access>public</access>
+  <active>true</active>
+  <api_name>global.ClaudeCapIncreaseHelper</api_name>
+  <caller_access/>
+  <client_callable>false</client_callable>
+  <description>Helper utility for the Claude Cap Increase Approval Flow. Walks the manager chain to find a VP approver and updates the RITM on approval or rejection.</description>
+  <name>ClaudeCapIncreaseHelper</name>
+  <script><![CDATA[var ClaudeCapIncreaseHelper = Class.create();
+ClaudeCapIncreaseHelper.prototype = {
+    initialize: function() {},
+
+    /**
+     * findVPApprover(userSysId)
+     *
+     * Walks the manager chain of the given user upward, looking for the
+     * first manager whose title contains 'VP' (case-insensitive).
+     *
+     * Algorithm:
+     *   1. Get the manager of the requested-for user.
+     *   2. If that manager's title contains 'VP' -> return their sys_id.
+     *   3. If not, get the manager's manager and repeat.
+     *   4. Stop after MAX_HOPS iterations to prevent infinite loops.
+     *   5. If no VP is found, fall back to System Administrator.
+     *
+     * @param  {string} userSysId - sys_id of the requested-for user
+     * @returns {string}          - sys_id of the VP approver (or fallback)
+     */
+    findVPApprover: function(userSysId) {
+        var MAX_HOPS = 10;
+        var currentUserId = userSysId;
+        var visited = {};
+
+        for (var hop = 0; hop < MAX_HOPS; hop++) {
+            if (!currentUserId) { break; }
+            if (visited[currentUserId]) {
+                gs.warn('ClaudeCapIncreaseHelper.findVPApprover: circular manager chain detected at ' + currentUserId);
+                break;
+            }
+            visited[currentUserId] = true;
+
+            var userGR = new GlideRecord('sys_user');
+            if (!userGR.get(currentUserId)) { break; }
+
+            var managerId = userGR.getValue('manager');
+            if (!managerId) {
+                gs.warn('ClaudeCapIncreaseHelper.findVPApprover: no manager found for user ' + currentUserId + ' at hop ' + hop);
+                break;
+            }
+
+            var managerGR = new GlideRecord('sys_user');
+            if (!managerGR.get(managerId)) { break; }
+
+            var managerTitle = (managerGR.getValue('title') || '').toUpperCase();
+            gs.debug('ClaudeCapIncreaseHelper.findVPApprover: hop=' + hop +
+                     ' manager=' + managerGR.getDisplayValue('name') +
+                     ' title=' + managerTitle);
+
+            if (managerTitle.indexOf('VP') !== -1) {
+                gs.info('ClaudeCapIncreaseHelper.findVPApprover: Found VP at hop ' + hop +
+                        ' -> ' + managerGR.getDisplayValue('name') +
+                        ' (' + managerId + ')');
+                return managerId;
+            }
+
+            currentUserId = managerId;
+        }
+
+        gs.warn('ClaudeCapIncreaseHelper.findVPApprover: No VP found in manager chain for user ' +
+                userSysId + ' after ' + MAX_HOPS + ' hops. Falling back to System Administrator.');
+        return this._getFallbackApprover();
+    },
+
+    /**
+     * _getFallbackApprover()
+     * Returns the sys_id of the System Administrator as a fallback approver.
+     * @private
+     * @returns {string} sys_id of System Administrator
+     */
+    _getFallbackApprover: function() {
+        var gr = new GlideRecord('sys_user');
+        gr.addQuery('user_name', 'admin');
+        gr.setLimit(1);
+        gr.query();
+        if (gr.next()) { return gr.getUniqueValue(); }
+        return '6816f79cc0a8016401c5a33be04be441';
+    },
+
+    /**
+     * getTierLabel(requestType, tierValue)
+     * Returns a human-readable label for display in work notes.
+     * @param {string} requestType - 'claude' or 'claude_code'
+     * @param {string} tierValue   - e.g. 'tier_1', 'a2'
+     * @returns {string}
+     */
+    getTierLabel: function(requestType, tierValue) {
+        var tierMap = {
+            'claude': {
+                'tier_1': 'Tier 1',
+                'tier_2': 'Tier 2',
+                'tier_3': 'Tier 3'
+            },
+            'claude_code': {
+                'a1': 'A1',
+                'a2': 'A2',
+                'a3': 'A3'
+            }
+        };
+        var appLabel = (requestType === 'claude_code') ? 'Claude Code' : 'Claude';
+        var typeMap  = tierMap[requestType] || {};
+        var tierLabel = typeMap[tierValue] || tierValue;
+        return appLabel + ' - ' + tierLabel;
+    },
+
+    /**
+     * updateRITMOnApproval(ritmSysId, approverSysId, comments, tier, requestType)
+     *
+     * Updates the RITM after VP approval:
+     * - Sets work_notes with approval summary
+     * - Sets comments (visible to requester)
+     * - Sets approval = 'approved', state = 3 (Closed Complete)
+     *
+     * @param {string} ritmSysId    - sys_id of sc_req_item
+     * @param {string} approverSysId - sys_id of the approving VP
+     * @param {string} comments     - comments from the VP
+     * @param {string} tier         - tier value selected (e.g. 'tier_1', 'a2')
+     * @param {string} requestType  - 'claude' or 'claude_code'
+     */
+    updateRITMOnApproval: function(ritmSysId, approverSysId, comments, tier, requestType) {
+        if (!ritmSysId) {
+            gs.error('ClaudeCapIncreaseHelper.updateRITMOnApproval: ritmSysId is required.');
+            return;
+        }
+
+        var ritm = new GlideRecord('sc_req_item');
+        if (!ritm.get(ritmSysId)) {
+            gs.error('ClaudeCapIncreaseHelper.updateRITMOnApproval: RITM not found - ' + ritmSysId);
+            return;
+        }
+
+        var approverName = '';
+        var approverTitle = '';
+        if (approverSysId) {
+            var approverGR = new GlideRecord('sys_user');
+            if (approverGR.get(approverSysId)) {
+                approverName  = approverGR.getDisplayValue('name');
+                approverTitle = approverGR.getValue('title') || 'VP';
+            }
+        }
+
+        var tierLabel = this.getTierLabel(requestType, tier);
+        var now       = new GlideDateTime().getDisplayValue();
+
+        ritm.work_notes =
+            'APPROVED - Claude Cap Increase Request\n' +
+            '--------------------------------------------\n' +
+            'Application / Tier : ' + tierLabel + '\n' +
+            'Max Cap Limit      : $300\n' +
+            'Approved By        : ' + (approverName  || 'N/A') + '\n' +
+            'Approver Title     : ' + (approverTitle || 'VP')  + '\n' +
+            'Approval Date/Time : ' + now + '\n' +
+            '--------------------------------------------\n' +
+            'Approver Comments  : ' + (comments || 'No comments provided.');
+
+        ritm.comments =
+            'Your Claude Cap Increase Request for ' + tierLabel +
+            ' has been approved by ' + (approverName || 'your VP') + '.\n\n' +
+            'Comments: ' + (comments || 'None.');
+
+        ritm.approval = 'approved';
+        ritm.state    = 3;
+
+        ritm.update();
+        gs.info('ClaudeCapIncreaseHelper: RITM ' + ritmSysId + ' approved by VP ' + approverName);
+    },
+
+    /**
+     * updateRITMOnRejection(ritmSysId, approverSysId, comments, tier, requestType)
+     *
+     * Updates the RITM after VP rejection:
+     * - Sets work_notes with rejection summary
+     * - Sets approval = 'rejected', state = 4 (Closed Incomplete)
+     *
+     * @param {string} ritmSysId    - sys_id of sc_req_item
+     * @param {string} approverSysId - sys_id of the rejecting VP
+     * @param {string} comments     - rejection comments from the VP
+     * @param {string} tier         - tier value selected
+     * @param {string} requestType  - 'claude' or 'claude_code'
+     */
+    updateRITMOnRejection: function(ritmSysId, approverSysId, comments, tier, requestType) {
+        if (!ritmSysId) {
+            gs.error('ClaudeCapIncreaseHelper.updateRITMOnRejection: ritmSysId is required.');
+            return;
+        }
+
+        var ritm = new GlideRecord('sc_req_item');
+        if (!ritm.get(ritmSysId)) {
+            gs.error('ClaudeCapIncreaseHelper.updateRITMOnRejection: RITM not found - ' + ritmSysId);
+            return;
+        }
+
+        var approverName  = '';
+        var approverTitle = '';
+        if (approverSysId) {
+            var approverGR = new GlideRecord('sys_user');
+            if (approverGR.get(approverSysId)) {
+                approverName  = approverGR.getDisplayValue('name');
+                approverTitle = approverGR.getValue('title') || 'VP';
+            }
+        }
+
+        var tierLabel = this.getTierLabel(requestType, tier);
+        var now       = new GlideDateTime().getDisplayValue();
+
+        ritm.work_notes =
+            'REJECTED - Claude Cap Increase Request\n' +
+            '--------------------------------------------\n' +
+            'Application / Tier : ' + tierLabel + '\n' +
+            'Rejected By        : ' + (approverName  || 'N/A') + '\n' +
+            'Rejector Title     : ' + (approverTitle || 'VP')  + '\n' +
+            'Rejection Date/Time: ' + now + '\n' +
+            '--------------------------------------------\n' +
+            'Rejection Comments : ' + (comments || 'No comments provided.');
+
+        ritm.comments =
+            'Your Claude Cap Increase Request for ' + tierLabel +
+            ' has been rejected by ' + (approverName || 'your VP') + '.\n\n' +
+            'Reason: ' + (comments || 'None.');
+
+        ritm.approval = 'rejected';
+        ritm.state    = 4;
+
+        ritm.update();
+        gs.info('ClaudeCapIncreaseHelper: RITM ' + ritmSysId + ' rejected by VP ' + approverName);
+    },
+
+    type: 'ClaudeCapIncreaseHelper'
+};
+]]></script>
+  <sys_class_name>sys_script_include</sys_class_name>
+  <sys_id>cla0000000000000000000000si00001</sys_id>
+  <sys_name>ClaudeCapIncreaseHelper</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>sys_script_include_cla0000000000000000000000si00001</sys_update_name>
+</sys_script_include>
+
+<!-- ============================================================ -->
+<!--  FLOW DESIGNER - FLOW DEFINITION                              -->
+<!--  Flow: Claude Cap Increase Approval Flow                      -->
+<!--                                                               -->
+<!--  Trigger:  Service Catalog - RITM created for                 -->
+<!--            "Claude Cap Increase Request" catalog item         -->
+<!--                                                               -->
+<!--  FLOW STEPS (logical order):                                  -->
+<!--                                                               -->
+<!--  1. Get Catalog Variables                                     -->
+<!--     - type_of_request, claude_tier, claude_code_tier         -->
+<!--                                                               -->
+<!--  2. Run Script: Find VP Approver                              -->
+<!--     - Calls ClaudeCapIncreaseHelper.findVPApprover()         -->
+<!--     - Input:  trigger.request_item.requested_for             -->
+<!--     - Output: vp_approver_sys_id (string)                    -->
+<!--                                                               -->
+<!--  3. Ask for Approval (VP)                                     -->
+<!--     - Approver: output of step 2 (vp_approver_sys_id)       -->
+<!--     - Requires mandatory comments                             -->
+<!--                                                               -->
+<!--  4a. IF Approved:                                             -->
+<!--      Run Script: ClaudeCapIncreaseHelper.updateRITMOnApproval -->
+<!--                                                               -->
+<!--  4b. IF Rejected:                                             -->
+<!--      Run Script: ClaudeCapIncreaseHelper.updateRITMOnRejection -->
+<!-- ============================================================ -->
+<sys_hub_flow action="INSERT_OR_UPDATE">
+  <access>package_private</access>
+  <active>true</active>
+  <annotations/>
+  <category/>
+  <copied_from/>
+  <copied_from_name/>
+  <description>Handles approval routing for Claude Cap Increase Requests. Walks the requested-for user's manager chain to find a VP and sends the approval request to that VP. Updates the RITM on approval or rejection.</description>
+  <inputs/>
+  <internal_name>global.claude_cap_increase_approval_flow</internal_name>
+  <label>Claude Cap Increase Approval Flow</label>
+  <language>en</language>
+  <master display_value="Claude Cap Increase Approval Flow">cla0000000000000000000000flw0001</master>
+  <name>claude_cap_increase_approval_flow</name>
+  <outputs/>
+  <remote_trigger_id/>
+  <run_as display_value="System Administrator">6816f79cc0a8016401c5a33be04be441</run_as>
+  <run_as_user_field/>
+  <show_draft_actions>false</show_draft_actions>
+  <status>published</status>
+  <sys_class_name>sys_hub_flow</sys_class_name>
+  <sys_id>cla0000000000000000000000flw0001</sys_id>
+  <sys_name>Claude Cap Increase Approval Flow</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>sys_hub_flow_cla0000000000000000000000flw0001</sys_update_name>
+  <trigger_definition display_value="Service Catalog">sc_cat_item_delivery</trigger_definition>
+  <trigger_fields>
+    <trigger_field>
+      <name>cat_item</name>
+      <value>cla0000000000000000000000itm0001</value>
+    </trigger_field>
+  </trigger_fields>
+  <type>flow</type>
+  <valid>true</valid>
+</sys_hub_flow>
+
+<!-- ============================================================ -->
+<!--  FLOW STEP 1: Get Catalog Variables                           -->
+<!-- ============================================================ -->
+<sys_hub_step action="INSERT_OR_UPDATE">
+  <access>package_private</access>
+  <active>true</active>
+  <annotation>Retrieve catalog variables (type_of_request, claude_tier, claude_code_tier) from the triggered RITM so they can be used in subsequent steps.</annotation>
+  <base_step_number>1</base_step_number>
+  <flow display_value="Claude Cap Increase Approval Flow">cla0000000000000000000000flw0001</flow>
+  <inputs>
+    <input>
+      <name>request_item</name>
+      <value>{{trigger.request_item}}</value>
+    </input>
+  </inputs>
+  <label>Get Catalog Variables from RITM</label>
+  <name>get_catalog_variables</name>
+  <order>100</order>
+  <outputs>
+    <output>
+      <name>type_of_request</name>
+      <label>Type of Request</label>
+      <type>string</type>
+    </output>
+    <output>
+      <name>claude_tier</name>
+      <label>Claude Tier</label>
+      <type>string</type>
+    </output>
+    <output>
+      <name>claude_code_tier</name>
+      <label>Claude Code Tier</label>
+      <type>string</type>
+    </output>
+  </outputs>
+  <step_type display_value="Look Up Catalog Variables">lookup_catalog_variables</step_type>
+  <sys_class_name>sys_hub_step</sys_class_name>
+  <sys_id>cla0000000000000000000000stp0001</sys_id>
+  <sys_name>Claude Cap Increase Approval Flow - Get Catalog Variables from RITM</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>sys_hub_step_cla0000000000000000000000stp0001</sys_update_name>
+</sys_hub_step>
+
+<!-- ============================================================ -->
+<!--  FLOW STEP 2: Script - Find VP Approver                       -->
+<!--  Runs ClaudeCapIncreaseHelper.findVPApprover() to walk       -->
+<!--  the manager chain and return the VP's sys_id.               -->
+<!-- ============================================================ -->
+<sys_hub_step action="INSERT_OR_UPDATE">
+  <access>package_private</access>
+  <active>true</active>
+  <annotation>Walk the requested-for user's manager chain upward until a manager with VP in their title is found. That VP's sys_id is stored as the approver for the next step.</annotation>
+  <base_step_number>2</base_step_number>
+  <flow display_value="Claude Cap Increase Approval Flow">cla0000000000000000000000flw0001</flow>
+  <inputs>
+    <input>
+      <name>script</name>
+      <value><![CDATA[
+(function execute(inputs, outputs) {
+    var requestedForId = inputs.requested_for_sys_id;
+    var helper = new ClaudeCapIncreaseHelper();
+    outputs.vp_approver_sys_id = helper.findVPApprover(requestedForId);
+})(inputs, outputs);
+      ]]></value>
+    </input>
+    <input>
+      <name>requested_for_sys_id</name>
+      <value>{{trigger.request_item.requested_for}}</value>
+    </input>
+  </inputs>
+  <label>Find VP Approver (Walk Manager Chain)</label>
+  <name>find_vp_approver</name>
+  <order>200</order>
+  <outputs>
+    <output>
+      <name>vp_approver_sys_id</name>
+      <label>VP Approver Sys ID</label>
+      <type>string</type>
+    </output>
+  </outputs>
+  <step_type display_value="Run Script">run_script</step_type>
+  <sys_class_name>sys_hub_step</sys_class_name>
+  <sys_id>cla0000000000000000000000stp0002</sys_id>
+  <sys_name>Claude Cap Increase Approval Flow - Find VP Approver</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>sys_hub_step_cla0000000000000000000000stp0002</sys_update_name>
+</sys_hub_step>
+
+<!-- ============================================================ -->
+<!--  FLOW STEP 3: Ask VP for Approval                             -->
+<!--  Sends an approval task to the VP found in Step 2.           -->
+<!--  VP must provide comments before approving or rejecting.     -->
+<!-- ============================================================ -->
+<sys_hub_step action="INSERT_OR_UPDATE">
+  <access>package_private</access>
+  <active>true</active>
+  <annotation>Send the approval request to the identified VP. The VP must provide mandatory comments. The flow waits here until the VP approves or rejects.</annotation>
+  <base_step_number>3</base_step_number>
+  <flow display_value="Claude Cap Increase Approval Flow">cla0000000000000000000000flw0001</flow>
+  <inputs>
+    <input>
+      <name>approval_field</name>
+      <value>Approve Claude Cap Increase Request for {{trigger.request_item.requested_for.name}} - Type: {{steps.get_catalog_variables.type_of_request}}</value>
+    </input>
+    <input>
+      <name>approvers</name>
+      <value>{{steps.find_vp_approver.vp_approver_sys_id}}</value>
+    </input>
+    <input>
+      <name>journal_field</name>
+      <value>comments</value>
+    </input>
+    <input>
+      <name>approve_label</name>
+      <value>Approved</value>
+    </input>
+    <input>
+      <name>reject_label</name>
+      <value>Rejected</value>
+    </input>
+    <input>
+      <name>due_date</name>
+      <value/>
+    </input>
+  </inputs>
+  <label>VP Approval - Claude Cap Increase</label>
+  <name>vp_approval</name>
+  <order>300</order>
+  <outputs>
+    <output>
+      <name>approval_state</name>
+      <label>Approval State</label>
+      <type>string</type>
+    </output>
+    <output>
+      <name>approver</name>
+      <label>Approver</label>
+      <type>reference</type>
+    </output>
+    <output>
+      <name>comments</name>
+      <label>VP Comments</label>
+      <type>string</type>
+    </output>
+  </outputs>
+  <step_type display_value="Ask for Approval">ask_for_approval</step_type>
+  <sys_class_name>sys_hub_step</sys_class_name>
+  <sys_id>cla0000000000000000000000stp0003</sys_id>
+  <sys_name>Claude Cap Increase Approval Flow - VP Approval</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>sys_hub_step_cla0000000000000000000000stp0003</sys_update_name>
+</sys_hub_step>
+
+<!-- ============================================================ -->
+<!--  FLOW STEP 4: If - Branch on Approval State                   -->
+<!-- ============================================================ -->
+<sys_hub_step action="INSERT_OR_UPDATE">
+  <access>package_private</access>
+  <active>true</active>
+  <annotation>Check whether the VP approved or rejected the request and route to the appropriate update script.</annotation>
+  <base_step_number>4</base_step_number>
+  <flow display_value="Claude Cap Increase Approval Flow">cla0000000000000000000000flw0001</flow>
+  <inputs>
+    <input>
+      <name>condition</name>
+      <value>{{steps.vp_approval.approval_state}} == approved</value>
+    </input>
+  </inputs>
+  <label>Check Approval Decision</label>
+  <name>check_approval_decision</name>
+  <order>400</order>
+  <step_type display_value="If">if</step_type>
+  <sys_class_name>sys_hub_step</sys_class_name>
+  <sys_id>cla0000000000000000000000stp0004</sys_id>
+  <sys_name>Claude Cap Increase Approval Flow - Check Approval Decision</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>sys_hub_step_cla0000000000000000000000stp0004</sys_update_name>
+</sys_hub_step>
+
+<!-- ============================================================ -->
+<!--  FLOW STEP 5a: Script - Update RITM on Approval               -->
+<!--  Runs inside the "true" branch of the If step above          -->
+<!-- ============================================================ -->
+<sys_hub_step action="INSERT_OR_UPDATE">
+  <access>package_private</access>
+  <active>true</active>
+  <annotation>VP approved the request. Call ClaudeCapIncreaseHelper.updateRITMOnApproval() to set RITM state to Closed Complete, update work_notes, and record approval details.</annotation>
+  <base_step_number>5</base_step_number>
+  <flow display_value="Claude Cap Increase Approval Flow">cla0000000000000000000000flw0001</flow>
+  <inputs>
+    <input>
+      <name>script</name>
+      <value><![CDATA[
+(function execute(inputs, outputs) {
+    var helper       = new ClaudeCapIncreaseHelper();
+    var ritmSysId    = inputs.ritm_sys_id;
+    var approverSysId = inputs.approver_sys_id;
+    var comments     = inputs.vp_comments;
+    var requestType  = inputs.type_of_request;
+
+    var tier = (requestType === 'claude_code')
+               ? inputs.claude_code_tier
+               : inputs.claude_tier;
+
+    helper.updateRITMOnApproval(ritmSysId, approverSysId, comments, tier, requestType);
+})(inputs, outputs);
+      ]]></value>
+    </input>
+    <input>
+      <name>ritm_sys_id</name>
+      <value>{{trigger.request_item.sys_id}}</value>
+    </input>
+    <input>
+      <name>approver_sys_id</name>
+      <value>{{steps.vp_approval.approver.sys_id}}</value>
+    </input>
+    <input>
+      <name>vp_comments</name>
+      <value>{{steps.vp_approval.comments}}</value>
+    </input>
+    <input>
+      <name>type_of_request</name>
+      <value>{{steps.get_catalog_variables.type_of_request}}</value>
+    </input>
+    <input>
+      <name>claude_tier</name>
+      <value>{{steps.get_catalog_variables.claude_tier}}</value>
+    </input>
+    <input>
+      <name>claude_code_tier</name>
+      <value>{{steps.get_catalog_variables.claude_code_tier}}</value>
+    </input>
+  </inputs>
+  <label>Update RITM - Approved</label>
+  <name>update_ritm_approved</name>
+  <order>500</order>
+  <parent display_value="Check Approval Decision">cla0000000000000000000000stp0004</parent>
+  <step_type display_value="Run Script">run_script</step_type>
+  <sys_class_name>sys_hub_step</sys_class_name>
+  <sys_id>cla0000000000000000000000stp0005</sys_id>
+  <sys_name>Claude Cap Increase Approval Flow - Update RITM Approved</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>sys_hub_step_cla0000000000000000000000stp0005</sys_update_name>
+</sys_hub_step>
+
+<!-- ============================================================ -->
+<!--  FLOW STEP 5b: Script - Update RITM on Rejection              -->
+<!--  Runs inside the "false/else" branch of the If step above    -->
+<!-- ============================================================ -->
+<sys_hub_step action="INSERT_OR_UPDATE">
+  <access>package_private</access>
+  <active>true</active>
+  <annotation>VP rejected the request. Call ClaudeCapIncreaseHelper.updateRITMOnRejection() to set RITM state to Closed Incomplete and record rejection details.</annotation>
+  <base_step_number>6</base_step_number>
+  <flow display_value="Claude Cap Increase Approval Flow">cla0000000000000000000000flw0001</flow>
+  <inputs>
+    <input>
+      <name>script</name>
+      <value><![CDATA[
+(function execute(inputs, outputs) {
+    var helper        = new ClaudeCapIncreaseHelper();
+    var ritmSysId     = inputs.ritm_sys_id;
+    var approverSysId = inputs.approver_sys_id;
+    var comments      = inputs.vp_comments;
+    var requestType   = inputs.type_of_request;
+
+    var tier = (requestType === 'claude_code')
+               ? inputs.claude_code_tier
+               : inputs.claude_tier;
+
+    helper.updateRITMOnRejection(ritmSysId, approverSysId, comments, tier, requestType);
+})(inputs, outputs);
+      ]]></value>
+    </input>
+    <input>
+      <name>ritm_sys_id</name>
+      <value>{{trigger.request_item.sys_id}}</value>
+    </input>
+    <input>
+      <name>approver_sys_id</name>
+      <value>{{steps.vp_approval.approver.sys_id}}</value>
+    </input>
+    <input>
+      <name>vp_comments</name>
+      <value>{{steps.vp_approval.comments}}</value>
+    </input>
+    <input>
+      <name>type_of_request</name>
+      <value>{{steps.get_catalog_variables.type_of_request}}</value>
+    </input>
+    <input>
+      <name>claude_tier</name>
+      <value>{{steps.get_catalog_variables.claude_tier}}</value>
+    </input>
+    <input>
+      <name>claude_code_tier</name>
+      <value>{{steps.get_catalog_variables.claude_code_tier}}</value>
+    </input>
+  </inputs>
+  <label>Update RITM - Rejected</label>
+  <name>update_ritm_rejected</name>
+  <order>600</order>
+  <parent display_value="Check Approval Decision">cla0000000000000000000000stp0004</parent>
+  <step_type display_value="Run Script">run_script</step_type>
+  <sys_class_name>sys_hub_step</sys_class_name>
+  <sys_id>cla0000000000000000000000stp0006</sys_id>
+  <sys_name>Claude Cap Increase Approval Flow - Update RITM Rejected</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>sys_hub_step_cla0000000000000000000000stp0006</sys_update_name>
+</sys_hub_step>
+
+</unload>
