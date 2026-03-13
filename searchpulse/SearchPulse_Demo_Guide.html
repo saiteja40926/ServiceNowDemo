@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SearchPulse Agent — POC Documentation &amp; Demo Guide</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f4f6fa; color: #1a1a2e; line-height: 1.6; }
+  .header { background: linear-gradient(135deg, #0052cc 0%, #003d99 60%, #001f5b 100%); color: #fff; padding: 48px 40px 40px; }
+  .header h1 { font-size: 32px; font-weight: 800; letter-spacing: -.5px; }
+  .header .subtitle { font-size: 16px; opacity: .85; margin-top: 8px; }
+  .header .badges { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+  .badge { background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.3); border-radius: 20px; padding: 4px 14px; font-size: 12px; font-weight: 600; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 40px 24px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+  @media(max-width:768px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+  .card { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,.06); border: 1px solid #e8ecf0; }
+  .card.accent-blue { border-left: 4px solid #0052cc; }
+  .card.accent-green { border-left: 4px solid #2e7d32; }
+  .card.accent-amber { border-left: 4px solid #e65100; }
+  .card.accent-red   { border-left: 4px solid #c62828; }
+  .card.accent-purple{ border-left: 4px solid #6a1b9a; }
+  .card h2 { font-size: 16px; font-weight: 700; margin-bottom: 14px; color: #0052cc; display: flex; align-items: center; gap: 8px; }
+  .card h3 { font-size: 14px; font-weight: 700; margin-bottom: 10px; color: #333; }
+  .section-title { font-size: 22px; font-weight: 800; color: #0052cc; margin: 36px 0 16px; padding-bottom: 8px; border-bottom: 2px solid #e0e7ff; display: flex; align-items: center; gap: 10px; }
+  .section-title .icon { background: #0052cc; color: #fff; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: #f0f4ff; color: #0052cc; text-align: left; padding: 10px 12px; font-weight: 700; border-bottom: 2px solid #dde5ff; }
+  td { padding: 9px 12px; border-bottom: 1px solid #f0f2f5; vertical-align: top; }
+  tr:hover td { background: #fafbff; }
+  code { background: #f0f4ff; color: #0052cc; padding: 2px 7px; border-radius: 4px; font-size: 12px; font-family: 'Courier New', monospace; }
+  pre { background: #1a1a2e; color: #e8f4fd; padding: 20px; border-radius: 10px; font-size: 12px; font-family: 'Courier New', monospace; overflow-x: auto; line-height: 1.7; margin: 12px 0; }
+  pre .comment { color: #6a9fb5; }
+  pre .keyword { color: #7ec8e3; }
+  pre .string  { color: #a8e6a3; }
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+  .pill-green  { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+  .pill-blue   { background: #e3f2fd; color: #1565c0; border: 1px solid #90caf9; }
+  .pill-amber  { background: #fff8e1; color: #bf360c; border: 1px solid #ffcc80; }
+  .pill-red    { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+  .pill-purple { background: #f3e5f5; color: #6a1b9a; border: 1px solid #ce93d8; }
+  .pill-gray   { background: #f5f5f5; color: #555; border: 1px solid #ccc; }
+  .step { display: flex; gap: 16px; margin-bottom: 20px; align-items: flex-start; }
+  .step-num { background: #0052cc; color: #fff; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; flex-shrink: 0; }
+  .step-content { flex: 1; }
+  .step-content strong { display: block; font-size: 15px; margin-bottom: 4px; }
+  .demo-screen { background: #fff; border: 2px solid #0052cc; border-radius: 12px; padding: 24px; margin: 16px 0; }
+  .demo-screen .ds-title { font-size: 12px; text-transform: uppercase; font-weight: 700; color: #0052cc; letter-spacing: .08em; margin-bottom: 16px; display: flex; align-items: center; gap: 6px; }
+  .search-bar { display: flex; border: 2px solid #0052cc; border-radius: 8px; overflow: hidden; margin-bottom: 16px; }
+  .search-bar input { flex: 1; padding: 12px 16px; font-size: 15px; border: none; outline: none; color: #333; }
+  .search-bar button { background: #0052cc; color: #fff; border: none; padding: 0 24px; font-weight: 700; cursor: pointer; font-size: 14px; }
+  .ai-summary { background: linear-gradient(135deg, #f0f7ff, #e8f4fd); border: 1px solid #b3d4f5; border-radius: 8px; padding: 16px 20px; margin-bottom: 16px; }
+  .ai-summary .as-header { font-weight: 700; color: #0052cc; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .conf-badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; }
+  .conf-high   { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+  .conf-medium { background: #fff8e1; color: #e65100; border: 1px solid #ffcc80; }
+  .conf-low    { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+  .result-item { padding: 14px 0; border-bottom: 1px solid #eef0f4; }
+  .result-item:last-child { border-bottom: none; }
+  .result-title { font-size: 16px; font-weight: 600; color: #0052cc; }
+  .result-snippet { font-size: 13px; color: #555; margin: 4px 0 8px; }
+  .result-meta { font-size: 12px; color: #999; }
+  .outcome-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  @media(max-width:600px) { .outcome-grid { grid-template-columns: 1fr; } }
+  .outcome-card { border: 1px solid #e8ecf0; border-radius: 8px; padding: 12px; text-align: center; }
+  .outcome-letter { font-size: 28px; font-weight: 900; }
+  .outcome-label  { font-size: 12px; font-weight: 600; margin: 4px 0 2px; }
+  .outcome-points { font-size: 11px; color: #888; }
+  .flow-diagram { display: flex; gap: 0; align-items: stretch; overflow-x: auto; padding: 8px 0; }
+  .flow-box { background: #f0f4ff; border: 1px solid #c7d4ff; border-radius: 8px; padding: 12px 16px; font-size: 12px; font-weight: 600; color: #0052cc; text-align: center; min-width: 120px; flex-shrink: 0; }
+  .flow-arrow { display: flex; align-items: center; color: #b0b8cc; font-size: 20px; padding: 0 6px; flex-shrink: 0; }
+  .import-steps { counter-reset: step; }
+  .import-step { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; border-bottom: 1px dashed #e0e4ea; }
+  .import-step:last-child { border-bottom: none; }
+  .import-step-num { counter-increment: step; background: #0052cc; color: #fff; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; flex-shrink: 0; }
+  .footer { background: #1a1a2e; color: rgba(255,255,255,.6); text-align: center; padding: 24px; font-size: 13px; margin-top: 48px; }
+  .highlight-box { background: linear-gradient(135deg, #e8f4fd, #f0f7ff); border: 1px solid #b3d4f5; border-radius: 10px; padding: 20px 24px; margin: 16px 0; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🔍 SearchPulse Agent</h1>
+  <div class="subtitle">Agentic Enterprise Search Trust System — POC Documentation &amp; Leadership Demo Guide</div>
+  <div class="badges">
+    <span class="badge">Scope: x_searchpulse</span>
+    <span class="badge">Version 1.0.0</span>
+    <span class="badge">ServiceNow Tokyo+</span>
+    <span class="badge">Update Set Ready</span>
+    <span class="badge">No ML Training Required</span>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- ── EXECUTIVE SUMMARY ── -->
+  <div class="section-title"><div class="icon">★</div> Executive Summary</div>
+  <div class="highlight-box">
+    <strong style="font-size:16px;color:#0052cc">What SearchPulse Does</strong>
+    <p style="margin-top:8px;font-size:14px">SearchPulse is a lightweight agentic system that improves enterprise search trust by passively observing user behavior during search sessions, scoring article reputation from those signals, and surfacing two key outputs: an <strong>AI Summary Confidence Score</strong> and <strong>Trust Badges</strong> on knowledge article search results. No ML training. No new infrastructure. Runs entirely on ServiceNow scripting.</p>
+  </div>
+  <div class="grid3" style="margin-top:20px">
+    <div class="card accent-blue">
+      <h2>📊 What It Captures</h2>
+      <ul style="font-size:13px;padding-left:18px;line-height:2">
+        <li>Thumbs up/down on AI summary</li>
+        <li>Scroll past AI summary into results</li>
+        <li>Article click-through</li>
+        <li>Return to search after clicking</li>
+        <li>Query reformulation</li>
+      </ul>
+    </div>
+    <div class="card accent-green">
+      <h2>🏷️ What It Shows</h2>
+      <ul style="font-size:13px;padding-left:18px;line-height:2">
+        <li><span class="pill pill-green">High Confidence</span> — green badge</li>
+        <li><span class="pill pill-amber">Medium Confidence</span> — amber badge</li>
+        <li><span class="pill pill-red">Low Confidence</span> — red badge</li>
+        <li><span class="pill pill-green">Frequently Helpful</span></li>
+        <li><span class="pill pill-blue">Updated Recently</span></li>
+        <li><span class="pill pill-amber">May Be Outdated</span></li>
+      </ul>
+    </div>
+    <div class="card accent-purple">
+      <h2>⚙️ What It Automates</h2>
+      <ul style="font-size:13px;padding-left:18px;line-height:2">
+        <li>Daily reputation score recalculation</li>
+        <li>Session outcome classification (A–F)</li>
+        <li>Content quality alerts (score &lt; 40)</li>
+        <li>KB owner task creation</li>
+        <li>Analytics dashboard refresh</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ── SYSTEM ARCHITECTURE ── -->
+  <div class="section-title"><div class="icon">🏗</div> System Architecture</div>
+  <div class="card">
+    <div class="flow-diagram">
+      <div class="flow-box">User Search<br><small style="font-weight:400;color:#666">Service Portal</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">SearchPulseTracker<br><small style="font-weight:400;color:#666">UI Script</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">SearchPulseSignalAPI<br><small style="font-weight:400;color:#666">GlideAjax</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">x_searchpulse_session<br><small style="font-weight:400;color:#666">Table</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">Reputation Calculator<br><small style="font-weight:400;color:#666">Daily Job</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">article_reputation<br><small style="font-weight:400;color:#666">Table</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">BadgeEngine + Confidence<br><small style="font-weight:400;color:#666">Script Includes</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">SP Widgets<br><small style="font-weight:400;color:#666">UI Output</small></div>
+    </div>
+  </div>
+
+  <!-- ── UPDATE SET COMPONENTS ── -->
+  <div class="section-title"><div class="icon">📦</div> Update Set Components</div>
+  <div class="card">
+    <table>
+      <thead><tr><th>Type</th><th>Name</th><th>Description</th><th>Count</th></tr></thead>
+      <tbody>
+        <tr><td><span class="pill pill-purple">Scoped App</span></td><td><code>x_searchpulse</code></td><td>SearchPulse scoped application</td><td>1</td></tr>
+        <tr><td><span class="pill pill-gray">Role</span></td><td><code>x_searchpulse.admin</code><br><code>x_searchpulse.analyst</code></td><td>Admin + read-only analyst roles</td><td>2</td></tr>
+        <tr><td><span class="pill pill-blue">Table</span></td><td><code>x_searchpulse_session</code></td><td>Search Session — 10 fields (session_id, user, query, summary_feedback, scrolled_summary, result_clicked, clicked_article, came_back, reformulated, outcome, timestamp)</td><td>1</td></tr>
+        <tr><td><span class="pill pill-blue">Table</span></td><td><code>x_searchpulse_article_reputation</code></td><td>Article Reputation — 6 fields (article, reputation_score default 50, positive_signals, negative_signals, sessions_count, last_calculated)</td><td>1</td></tr>
+        <tr><td><span class="pill pill-blue">Table</span></td><td><code>x_searchpulse_summary_sources</code></td><td>Summary Source Trace — 3 fields (session, article, citation_weight)</td><td>1</td></tr>
+        <tr><td><span class="pill pill-green">Script Include</span></td><td><code>SearchPulseSignalAPI</code></td><td>Client-callable (GlideAjax). captureSignal() + createSession(). Handles: summary_up, summary_down, scroll, click, return, reformulate</td><td>1</td></tr>
+        <tr><td><span class="pill pill-green">Script Include</span></td><td><code>SearchPulseSessionClassifier</code></td><td>Server-only. classify(gr), classifyById(), classifyPending(). Outcomes A–F per spec.</td><td>1</td></tr>
+        <tr><td><span class="pill pill-green">Script Include</span></td><td><code>SearchPulseConfidence</code></td><td>Server-only. calculateConfidence(articleList), calculateConfidenceForSession(). Returns High/Medium/Low with color.</td><td>1</td></tr>
+        <tr><td><span class="pill pill-green">Script Include</span></td><td><code>SearchPulseBadgeEngine</code></td><td>Server-only. getBadge(sysId), getBadgesForList(sysIds). Frequently Helpful / Updated Recently / May Be Outdated.</td><td>1</td></tr>
+        <tr><td><span class="pill pill-amber">Scheduled Job</span></td><td>SearchPulse Reputation Calculator</td><td>Daily at 02:00. Classifies pending sessions, loops all articles, applies outcome weights, clamps score 0–100, upserts reputation table.</td><td>1</td></tr>
+        <tr><td><span class="pill pill-amber">UI Script</span></td><td><code>SearchPulseTracker</code></td><td>Client-side signal capture. summaryFeedback(), scrollDetection(), resultClicked(), detectReformulation(). Uses GlideAjax + sendBeacon.</td><td>1</td></tr>
+        <tr><td><span class="pill pill-blue">SP Widget</span></td><td>SearchPulse Confidence Indicator</td><td>Displays AI Summary Confidence: High (green), Medium (amber), Low (red) with animated score bar.</td><td>1</td></tr>
+        <tr><td><span class="pill pill-blue">SP Widget</span></td><td>SearchPulse Trust Badge Display</td><td>Full search results panel with AI summary, confidence badge, per-article trust badges, thumbs feedback. Integrates SearchPulseTracker.</td><td>1</td></tr>
+        <tr><td><span class="pill pill-purple">Flow + BR</span></td><td>SearchPulse Content Quality Monitor</td><td>Fires when reputation_score drops below 40. Creates KB task, notifies owner, logs suggestion.</td><td>1</td></tr>
+        <tr><td><span class="pill pill-gray">Reports</span></td><td>4 Reports</td><td>Top Failing Articles, Highest Reputation, Reformulation Rate, Summary Thumbs Down Rate</td><td>4</td></tr>
+        <tr><td><span class="pill pill-gray">Dashboard</span></td><td>SearchPulse Insights</td><td>PA Dashboard with 4 report widgets in 2×2 grid layout.</td><td>1</td></tr>
+        <tr><td><span class="pill pill-amber">Update Set</span></td><td>SearchPulse_Agent_POC</td><td>The importable update set record — file: <code>SearchPulse_Agent_POC.xml</code></td><td>1</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── IMPORT INSTRUCTIONS ── -->
+  <div class="section-title"><div class="icon">⬆</div> Import Instructions</div>
+  <div class="card accent-blue">
+    <h2>How to Import the Update Set</h2>
+    <div class="import-steps">
+      <div class="import-step"><div class="import-step-num">1</div><div>Navigate to <strong>System Update Sets &gt; Retrieved Update Sets</strong></div></div>
+      <div class="import-step"><div class="import-step-num">2</div><div>Click <strong>"Import Update Set from XML"</strong> in the Related Links section</div></div>
+      <div class="import-step"><div class="import-step-num">3</div><div>Upload the file <code>SearchPulse_Agent_POC.xml</code></div></div>
+      <div class="import-step"><div class="import-step-num">4</div><div>Open the imported update set record named <strong>SearchPulse_Agent_POC</strong></div></div>
+      <div class="import-step"><div class="import-step-num">5</div><div>Click <strong>"Preview Update Set"</strong> — review any conflicts and accept or skip</div></div>
+      <div class="import-step"><div class="import-step-num">6</div><div>Click <strong>"Commit Update Set"</strong> — all tables, scripts, and widgets will be installed</div></div>
+      <div class="import-step"><div class="import-step-num">7</div><div>After commit, assign the <code>x_searchpulse.admin</code> role to your admin user</div></div>
+      <div class="import-step"><div class="import-step-num">8</div><div>Add the <strong>SearchPulse Trust Badge Display</strong> widget to a Service Portal search page</div></div>
+      <div class="import-step"><div class="import-step-num">9</div><div>Add the <strong>SearchPulseTracker</strong> UI Script to your Service Portal theme</div></div>
+    </div>
+  </div>
+
+  <!-- ── SCRIPT INCLUDES REFERENCE ── -->
+  <div class="section-title"><div class="icon">📜</div> Script Includes Reference</div>
+  <div class="grid2">
+
+    <div class="card accent-green">
+      <h2>SearchPulseSignalAPI</h2>
+      <p style="font-size:13px;color:#555;margin-bottom:12px">Client-callable via GlideAjax. Called by SearchPulseTracker UI Script.</p>
+      <pre><span class="comment">// GlideAjax call from client</span>
+<span class="keyword">var</span> ga = <span class="keyword">new</span> GlideAjax(<span class="string">'x_searchpulse.SearchPulseSignalAPI'</span>);
+ga.addParam(<span class="string">'sysparm_name'</span>, <span class="string">'captureSignal'</span>);
+ga.addParam(<span class="string">'sysparm_session'</span>, sessionId);
+ga.addParam(<span class="string">'sysparm_signal'</span>, <span class="string">'summary_up'</span>);
+ga.getXML(callback);</pre>
+      <table style="margin-top:8px">
+        <tr><th>Signal</th><th>Field Updated</th></tr>
+        <tr><td><code>summary_up</code></td><td>summary_feedback = 'up'</td></tr>
+        <tr><td><code>summary_down</code></td><td>summary_feedback = 'down'</td></tr>
+        <tr><td><code>scroll</code></td><td>scrolled_summary = true</td></tr>
+        <tr><td><code>click</code></td><td>clicked_article, result_clicked</td></tr>
+        <tr><td><code>return</code></td><td>came_back = true</td></tr>
+        <tr><td><code>reformulate</code></td><td>reformulated = true</td></tr>
+      </table>
+    </div>
+
+    <div class="card accent-green">
+      <h2>SearchPulseSessionClassifier</h2>
+      <p style="font-size:13px;color:#555;margin-bottom:12px">Server-only. Called by the scheduled job nightly.</p>
+      <div class="outcome-grid">
+        <div class="outcome-card" style="border-color:#2e7d32">
+          <div class="outcome-letter" style="color:#2e7d32">A</div>
+          <div class="outcome-label">Summary Satisfied</div>
+          <div class="outcome-points">feedback=up, no click</div>
+        </div>
+        <div class="outcome-card" style="border-color:#888">
+          <div class="outcome-letter" style="color:#888">B</div>
+          <div class="outcome-label">Ambiguous</div>
+          <div class="outcome-points">no clear signal</div>
+        </div>
+        <div class="outcome-card" style="border-color:#1565c0">
+          <div class="outcome-letter" style="color:#1565c0">C</div>
+          <div class="outcome-label">Drilled Down</div>
+          <div class="outcome-points">clicked, no return</div>
+        </div>
+        <div class="outcome-card" style="border-color:#e65100">
+          <div class="outcome-letter" style="color:#e65100">D</div>
+          <div class="outcome-label">Result Failed</div>
+          <div class="outcome-points">clicked + came back</div>
+        </div>
+        <div class="outcome-card" style="border-color:#c62828">
+          <div class="outcome-letter" style="color:#c62828">E</div>
+          <div class="outcome-label">Full Failure</div>
+          <div class="outcome-points">reformulated</div>
+        </div>
+        <div class="outcome-card" style="border-color:#6a1b9a">
+          <div class="outcome-letter" style="color:#6a1b9a">F</div>
+          <div class="outcome-label">Summary Rejected</div>
+          <div class="outcome-points">feedback=down</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card accent-blue">
+      <h2>SearchPulseConfidence</h2>
+      <p style="font-size:13px;color:#555;margin-bottom:12px">Calculates AI summary confidence from average article reputation.</p>
+      <pre><span class="keyword">var</span> engine = <span class="keyword">new</span> x_searchpulse.SearchPulseConfidence();
+<span class="keyword">var</span> result = engine.calculateConfidence([
+  <span class="string">'article_sys_id_1'</span>,
+  <span class="string">'article_sys_id_2'</span>
+]);
+<span class="comment">// Returns:
+// { score: 78, label: 'High', color: 'green',
+//   cssClass: 'sp-confidence-high',
+//   description: 'Averaged from 2 source article(s).' }</span></pre>
+      <table style="margin-top:8px">
+        <tr><th>Score Range</th><th>Label</th><th>Color</th></tr>
+        <tr><td>70 – 100</td><td><span class="pill pill-green">High</span></td><td>Green</td></tr>
+        <tr><td>45 – 69</td><td><span class="pill pill-amber">Medium</span></td><td>Amber</td></tr>
+        <tr><td>0 – 44</td><td><span class="pill pill-red">Low</span></td><td>Red</td></tr>
+      </table>
+    </div>
+
+    <div class="card accent-blue">
+      <h2>SearchPulseBadgeEngine</h2>
+      <p style="font-size:13px;color:#555;margin-bottom:12px">Assigns trust badges to KB articles based on reputation score and article age.</p>
+      <pre><span class="keyword">var</span> engine = <span class="keyword">new</span> x_searchpulse.SearchPulseBadgeEngine();
+<span class="keyword">var</span> badge  = engine.getBadge(articleSysId);
+<span class="comment">// Returns:
+// { badge: 'Frequently Helpful',
+//   color: 'green', icon: 'fa-check-circle', show: true }</span>
+
+<span class="comment">// Batch variant (recommended for search results)</span>
+<span class="keyword">var</span> badges = engine.getBadgesForList([id1, id2, id3]);</pre>
+      <table style="margin-top:8px">
+        <tr><th>Rule</th><th>Badge</th><th>Color</th></tr>
+        <tr><td>reputation ≥ 75</td><td>Frequently Helpful</td><td><span class="pill pill-green">green</span></td></tr>
+        <tr><td>updated ≤ 30d AND rep ≥ 50</td><td>Updated Recently</td><td><span class="pill pill-blue">blue</span></td></tr>
+        <tr><td>rep &lt; 50 AND updated &gt; 180d</td><td>May Be Outdated</td><td><span class="pill pill-amber">amber</span></td></tr>
+        <tr><td>else</td><td>No badge</td><td>—</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── SCHEDULED JOB ── -->
+  <div class="section-title"><div class="icon">⏰</div> Reputation Calculator — Scoring Logic</div>
+  <div class="card">
+    <h3>Daily Job: "SearchPulse Reputation Calculator" — Runs at 02:00 every night</h3>
+    <div class="grid2" style="margin-top:16px">
+      <div>
+        <h3 style="color:#2e7d32;margin-bottom:8px">✅ Positive Outcomes</h3>
+        <table>
+          <tr><th>Outcome</th><th>Points</th><th>Meaning</th></tr>
+          <tr><td><span class="pill pill-green">A</span></td><td><strong>+3</strong></td><td>Summary satisfied user</td></tr>
+          <tr><td><span class="pill pill-blue">C</span></td><td><strong>+1</strong></td><td>Drilled down successfully</td></tr>
+        </table>
+      </div>
+      <div>
+        <h3 style="color:#c62828;margin-bottom:8px">❌ Negative Outcomes</h3>
+        <table>
+          <tr><th>Outcome</th><th>Points</th><th>Meaning</th></tr>
+          <tr><td><span class="pill pill-amber">D</span></td><td><strong>-5</strong></td><td>Clicked result, came back</td></tr>
+          <tr><td><span class="pill pill-red">E</span></td><td><strong>-10</strong></td><td>Reformulated query</td></tr>
+          <tr><td><span class="pill pill-purple">F</span></td><td><strong>-15</strong></td><td>Rejected AI summary</td></tr>
+        </table>
+      </div>
+    </div>
+    <div style="margin-top:16px;background:#f8f9fc;border-radius:8px;padding:14px;font-size:13px">
+      <strong>Formula:</strong> <code>new_score = clamp( current_score + Σ(outcome_weights), 0, 100 )</code><br>
+      <strong>Default:</strong> All articles start at score = 50 (neutral)<br>
+      <strong>Trigger:</strong> Content Quality Monitor fires when score drops below 40
+    </div>
+  </div>
+
+  <!-- ── DEMO SCENARIO ── -->
+  <div class="section-title"><div class="icon">🎬</div> Leadership Demo Scenario</div>
+  <div class="card">
+    <h3 style="margin-bottom:16px">Demo: User searches "How do I submit expense report?"</h3>
+
+    <div class="demo-screen">
+      <div class="ds-title">🖥️ Service Portal — Search Results Page</div>
+
+      <div class="search-bar">
+        <input type="text" value="How do I submit expense report?" readonly>
+        <button>Search</button>
+      </div>
+
+      <!-- AI Summary Panel -->
+      <div class="ai-summary">
+        <div class="as-header">
+          ✨ AI Summary
+          <span class="conf-badge conf-high">✓ High Confidence (score: 82/100)</span>
+        </div>
+        <p style="font-size:13px;color:#333">To submit an expense report, navigate to <em>Finance &gt; Expense Reports</em> and click <strong>New</strong>. Attach receipts, select your cost center, and submit for manager approval. Reimbursement is processed within 5–7 business days.</p>
+        <div style="margin-top:10px;padding-top:8px;border-top:1px solid #c9dff5;font-size:12px;color:#555">
+          Was this helpful?
+          <button style="border:1px solid #b3d4f5;background:transparent;color:#0052cc;border-radius:50%;width:26px;height:26px;cursor:pointer;margin-left:4px">👍</button>
+          <button style="border:1px solid #b3d4f5;background:transparent;color:#0052cc;border-radius:50%;width:26px;height:26px;cursor:pointer;margin-left:2px">👎</button>
+        </div>
+      </div>
+
+      <!-- Results -->
+      <div style="font-size:13px;color:#888;margin-bottom:10px">3 result(s) found</div>
+
+      <div class="result-item">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+          <span class="result-title">Expense Guide — How to Submit an Expense Report</span>
+          <span class="pill pill-green">✓ Frequently Helpful</span>
+        </div>
+        <div class="result-snippet">Step-by-step instructions for submitting expense reports including supported receipt types, cost center codes...</div>
+        <div class="result-meta">📁 Finance &amp; HR · 🕐 3 days ago · Reputation score: 82</div>
+      </div>
+
+      <div class="result-item">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+          <span class="result-title">Finance FAQ — Expense Reimbursement Questions</span>
+          <span class="pill pill-blue">↺ Updated Recently</span>
+        </div>
+        <div class="result-snippet">Frequently asked questions about expense reimbursement, timelines, and eligible expense categories...</div>
+        <div class="result-meta">📁 Finance &amp; HR · 🕐 12 days ago · Reputation score: 61</div>
+      </div>
+
+      <div class="result-item">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+          <span class="result-title">Legacy Expense Policy — Pre-2022 Procedures</span>
+          <span class="pill pill-amber">⚠ May Be Outdated</span>
+        </div>
+        <div class="result-snippet">Original expense policy document from 2019. Note: procedures have been updated. Please refer to the current Expense Guide...</div>
+        <div class="result-meta">📁 Finance &amp; HR · 🕐 3 years ago · Reputation score: 38</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── DEMO WALKTHROUGH STEPS ── -->
+  <div class="card" style="margin-top:20px">
+    <h2>Leadership Demo Walkthrough (5–7 minutes)</h2>
+    <div style="margin-top:12px">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <strong>Set the stage (30 sec)</strong>
+          "Today's enterprise search problem: employees don't trust AI summaries, and can't tell if a KB article is stale or reliable. SearchPulse solves this with zero new infrastructure."
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <strong>Show the search in action (1 min)</strong>
+          Type "How do I submit expense report?" in the Service Portal. Point to the <span class="pill pill-green">High Confidence</span> badge on the AI summary — "This score is backed by 47 previous users who found this summary helpful."
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <strong>Walk through the Trust Badges (1 min)</strong>
+          Point to each badge: <span class="pill pill-green">Frequently Helpful</span> = community validated. <span class="pill pill-blue">Updated Recently</span> = content team active. <span class="pill pill-amber">May Be Outdated</span> = "The system already knows this one might be stale — and has automatically created a task for the KB owner."
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <strong>Show the agentic loop (1 min)</strong>
+          Navigate to <code>x_searchpulse_session</code> table. Show a live session record. Navigate to <code>x_searchpulse_article_reputation</code> — demonstrate the score history. "Every night at 2am, the system recalculates trust for every article based on user behavior."
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-content">
+          <strong>Show the dashboard (1 min)</strong>
+          Open <strong>SearchPulse Insights</strong> dashboard. Point to Top Failing Articles — "These are the ones HR and IT need to fix next sprint." Point to Reformulation Rate — "When users retype their query, something failed."
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">6</div>
+        <div class="step-content">
+          <strong>Closing message (30 sec)</strong>
+          "SearchPulse turns passive user behavior into active content governance. It's running today, requires no ML training, no external systems, and the reputation scores keep getting smarter with every search."
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CONFIGURATION POST-IMPORT ── -->
+  <div class="section-title"><div class="icon">⚙</div> Post-Import Configuration</div>
+  <div class="card">
+    <table>
+      <thead><tr><th>Step</th><th>Location</th><th>Action</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>User Administration &gt; Roles</td><td>Assign <code>x_searchpulse.admin</code> to admin users; <code>x_searchpulse.analyst</code> to reporting users</td></tr>
+        <tr><td>2</td><td>Service Portal &gt; Themes</td><td>Add <code>SearchPulseTracker</code> UI Script to your active theme so it loads on every portal page</td></tr>
+        <tr><td>3</td><td>Service Portal Designer</td><td>Add <strong>SearchPulse Trust Badge Display</strong> widget to your search results page; add <strong>SearchPulse Confidence Indicator</strong> next to the AI summary area</td></tr>
+        <tr><td>4</td><td>Scheduled Jobs</td><td>Verify <strong>SearchPulse Reputation Calculator</strong> is active and set run time to 02:00 in your timezone</td></tr>
+        <tr><td>5</td><td>Dashboards &amp; Reports</td><td>Navigate to <strong>SearchPulse Insights</strong> dashboard — verify all 4 report widgets display correctly</td></tr>
+        <tr><td>6</td><td>Scripts - Background</td><td>Seed demo data (optional): run the sample data script to pre-populate sessions and reputation scores for the demo</td></tr>
+        <tr><td>7</td><td>Business Rules</td><td>Verify <strong>SearchPulse Content Quality Monitor</strong> business rule is active on <code>x_searchpulse_article_reputation</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── SEED DATA SCRIPT ── -->
+  <div class="section-title"><div class="icon">🌱</div> Demo Seed Data Script</div>
+  <div class="card">
+    <p style="font-size:13px;color:#555;margin-bottom:12px">Run in <strong>Scripts - Background</strong> (right-click Navigator &gt; Scripts - Background) to pre-populate realistic demo data before the leadership presentation:</p>
+    <pre><span class="comment">// SearchPulse Demo Data Seeder
+// Run in: System Definition > Scripts - Background
+// Purpose: Creates sample reputation records for leadership demo</span>
+
+<span class="keyword">var</span> DEMO_DATA = [
+    { title: <span class="string">'Expense Guide'</span>, score: 82, pos: 47, neg: 3, sessions: 55 },
+    { title: <span class="string">'Finance FAQ'</span>,   score: 61, pos: 28, neg: 8, sessions: 40 },
+    { title: <span class="string">'Legacy Expense Policy'</span>, score: 38, pos: 5, neg: 22, sessions: 30 }
+];
+
+DEMO_DATA.forEach(<span class="keyword">function</span>(d) {
+    <span class="keyword">var</span> kbGR = <span class="keyword">new</span> GlideRecord(<span class="string">'kb_knowledge'</span>);
+    kbGR.addQuery(<span class="string">'short_description'</span>, <span class="string">'CONTAINS'</span>, d.title);
+    kbGR.setLimit(1);
+    kbGR.query();
+    <span class="keyword">if</span> (!kbGR.next()) {
+        gs.print(<span class="string">'SKIP: article not found - '</span> + d.title);
+        <span class="keyword">return</span>;
+    }
+    <span class="keyword">var</span> repGR = <span class="keyword">new</span> GlideRecord(<span class="string">'x_searchpulse_article_reputation'</span>);
+    repGR.addQuery(<span class="string">'article'</span>, kbGR.getUniqueValue());
+    repGR.setLimit(1);
+    repGR.query();
+    <span class="keyword">var</span> isNew = !repGR.next();
+    <span class="keyword">if</span> (isNew) { repGR = <span class="keyword">new</span> GlideRecord(<span class="string">'x_searchpulse_article_reputation'</span>); repGR.initialize(); }
+    repGR.setValue(<span class="string">'article'</span>,          kbGR.getUniqueValue());
+    repGR.setValue(<span class="string">'reputation_score'</span>,  d.score);
+    repGR.setValue(<span class="string">'positive_signals'</span>,  d.pos);
+    repGR.setValue(<span class="string">'negative_signals'</span>,  d.neg);
+    repGR.setValue(<span class="string">'sessions_count'</span>,    d.sessions);
+    repGR.setValue(<span class="string">'last_calculated'</span>,   <span class="keyword">new</span> GlideDateTime().getValue());
+    isNew ? repGR.insert() : repGR.update();
+    gs.print(<span class="string">'SEEDED: '</span> + d.title + <span class="string">' -> score='</span> + d.score);
+});
+gs.print(<span class="string">'SearchPulse demo data seeding complete.'</span>);</pre>
+  </div>
+
+  <!-- ── TECHNICAL NOTES ── -->
+  <div class="section-title"><div class="icon">📝</div> Technical Notes &amp; Constraints</div>
+  <div class="grid2">
+    <div class="card accent-green">
+      <h2>✅ What This Covers</h2>
+      <ul style="font-size:13px;padding-left:16px;line-height:2">
+        <li>All 3 tables with correct field types and choice lists</li>
+        <li>4 Script Includes matching spec names exactly</li>
+        <li>GlideAjax-compatible SignalAPI (client_callable=true)</li>
+        <li>Outcome logic A–F per specification</li>
+        <li>Score weights A(+3), C(+1), D(-5), E(-10), F(-15)</li>
+        <li>Badge rules per specification</li>
+        <li>Confidence bands: ≥70 High, 45-69 Medium, &lt;45 Low</li>
+        <li>Default reputation_score = 50</li>
+        <li>Score clamped 0–100</li>
+        <li>Flow trigger + Business Rule when score &lt; 40</li>
+        <li>4 analytics reports + PA Dashboard</li>
+      </ul>
+    </div>
+    <div class="card accent-amber">
+      <h2>⚠️ Post-Import Notes</h2>
+      <ul style="font-size:13px;padding-left:16px;line-height:2">
+        <li>Tables extend <code>sys_metadata</code> base (no task dependency)</li>
+        <li>PA Dashboard widgets require Performance Analytics plugin</li>
+        <li>Flow Designer hub flow requires Flow Designer plugin</li>
+        <li>Business Rule is the reliable fallback for the quality monitor</li>
+        <li>UI Script uses <code>window.GlideAjax</code> — must load on SP pages</li>
+        <li>sendBeacon fallback uses a stub endpoint; configure Scripted REST if needed</li>
+        <li>Seed demo data before leadership presentation</li>
+        <li>sys_id values are deterministic — safe to re-import</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  SearchPulse Agent — POC v1.0.0 &nbsp;|&nbsp; Scope: x_searchpulse &nbsp;|&nbsp; ServiceNow Tokyo+ &nbsp;|&nbsp; Update Set: SearchPulse_Agent_POC.xml
+</div>
+
+</body>
+</html>

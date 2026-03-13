@@ -1,0 +1,1451 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<unload unload_date="2026-03-13">
+<!--
+================================================================================
+  Money Increase Request - Catalog + Approval Flow Update Set
+  Name   : MoneyIncrease_Catalog_Flow
+  Scope  : global
+  Version: 1.0.0
+
+  IMPORT STEPS:
+  1. System Update Sets > Retrieved Update Sets
+  2. "Import Update Set from XML" - upload this file
+  3. Preview Update Set (resolve conflicts if any)
+  4. Commit Update Set
+
+  COMPONENTS:
+  - Catalog Item       : Money Increase Request
+  - Catalog Variables  : Requested Amount, Business Justification
+  - Flow Designer Flow : Money Increase Approval Flow
+      * $200 cap → GVP approval
+      * $300 cap → SVP approval
+      * $500 cap → VP approval
+  - Flow Action Steps  :
+      * Conditional approval routing
+      * RITM update with approver comments on approval
+  - Script Include     : MoneyIncreaseHelper (RITM updater utility)
+
+  APPROVAL ROUTING LOGIC:
+  ┌──────────────────────────────────────────────┐
+  │ Current max = $100 (app default)             │
+  │ Requested $200 → Requires GVP approval       │
+  │ Requested $300 → Requires SVP approval       │
+  │ Requested $500 → Requires VP  approval       │
+  └──────────────────────────────────────────────┘
+
+  ON APPROVAL:
+  - Approver adds mandatory comments
+  - RITM is updated: work_notes + approval_comments field set
+  - RITM state set to "Approved" (3)
+================================================================================
+-->
+
+<!-- ============================================================ -->
+<!--  SERVICE CATALOG - CATEGORY                                   -->
+<!-- ============================================================ -->
+<sc_category action="INSERT_OR_UPDATE">
+  <active>true</active>
+  <description>Financial limit change requests for paid applications</description>
+  <full_description>Submit requests to increase the monetary cap on your paid application beyond the default $100 limit. Requests are routed to the appropriate executive for approval based on the requested amount.</full_description>
+  <homepage_renderer/>
+  <icon/>
+  <image/>
+  <location/>
+  <mobile_hide_description>false</mobile_hide_description>
+  <mobile_picture/>
+  <mobile_subcategory_render_type>list</mobile_subcategory_render_type>
+  <order>100</order>
+  <parent/>
+  <roles/>
+  <sc_catalog display_value="Service Catalog">e0d08b13c3330100c8b837659bba8fb4</sc_catalog>
+  <sys_class_name>sc_category</sys_class_name>
+  <sys_id>mon0000000000000000000000cat0001</sys_id>
+  <sys_name>Financial Limit Requests</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>sc_category_mon0000000000000000000000cat0001</sys_update_name>
+  <title>Financial Limit Requests</title>
+</sc_category>
+
+<!-- ============================================================ -->
+<!--  SERVICE CATALOG ITEM                                         -->
+<!-- ============================================================ -->
+<sc_cat_item action="INSERT_OR_UPDATE">
+  <active>true</active>
+  <availability>on_both</availability>
+  <billable>false</billable>
+  <category display_value="Financial Limit Requests">mon0000000000000000000000cat0001</category>
+  <cost>0</cost>
+  <custom_cart/>
+  <delivery_plan/>
+  <delivery_plan_script/>
+  <delivery_time/>
+  <description>&lt;p&gt;Use this form to request an increase to your paid application&apos;s monetary cap beyond the default &lt;strong&gt;$100 limit&lt;/strong&gt;.&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;$200 cap&lt;/strong&gt; — Requires &lt;strong&gt;GVP&lt;/strong&gt; approval&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;$300 cap&lt;/strong&gt; — Requires &lt;strong&gt;SVP&lt;/strong&gt; approval&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;$500 cap&lt;/strong&gt; — Requires &lt;strong&gt;VP&lt;/strong&gt; approval&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Your request will be automatically routed to the correct approver. Once approved (with comments), your RITM will be updated accordingly.&lt;/p&gt;</description>
+  <entitlement_script/>
+  <fulfillment_instructions>Route this RITM through the Money Increase Approval Flow. The flow will identify the correct approver based on the requested cap amount and update the RITM upon approval.</fulfillment_instructions>
+  <group/>
+  <hide_sp>false</hide_sp>
+  <icon/>
+  <ignore_price>false</ignore_price>
+  <image/>
+  <list_price>0</list_price>
+  <location/>
+  <mandatory_attachment>false</mandatory_attachment>
+  <meta/>
+  <mobile_hide_price>false</mobile_hide_price>
+  <mobile_picture/>
+  <mobile_subtitle>Increase app monetary cap - requires executive approval</mobile_subtitle>
+  <model/>
+  <name>Money Increase Request</name>
+  <no_attachment_v2>false</no_attachment_v2>
+  <no_cart>false</no_cart>
+  <no_delivery_time_v2>false</no_delivery_time_v2>
+  <no_order>false</no_order>
+  <no_order_now>false</no_order_now>
+  <no_proceed_checkout>false</no_proceed_checkout>
+  <no_quantity>true</no_quantity>
+  <no_search>false</no_search>
+  <no_wishlist_v2>false</no_wishlist_v2>
+  <omit_price>true</omit_price>
+  <order>100</order>
+  <owner/>
+  <picture/>
+  <preview/>
+  <published_ref/>
+  <request_method/>
+  <roles/>
+  <sc_catalogs display_value="Service Catalog">e0d08b13c3330100c8b837659bba8fb4</sc_catalogs>
+  <sc_ic_item_staging/>
+  <sc_ic_version/>
+  <short_description>Request an increase to your paid app's monetary cap (beyond $100 default)</short_description>
+  <show_delivery_time>false</show_delivery_time>
+  <show_price>false</show_price>
+  <show_wishlist>false</show_wishlist>
+  <start_closed>false</start_closed>
+  <sys_class_name>sc_cat_item</sys_class_name>
+  <sys_id>mon0000000000000000000000itm0001</sys_id>
+  <sys_name>Money Increase Request</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>sc_cat_item_mon0000000000000000000000itm0001</sys_update_name>
+  <template/>
+  <type>item</type>
+  <use_sc_layout>true</use_sc_layout>
+  <vendor/>
+  <visible_bundle>true</visible_bundle>
+  <visible_guide>true</visible_guide>
+  <visible_standalone>true</visible_standalone>
+  <workflow display_value=""/>
+</sc_cat_item>
+
+<!-- ============================================================ -->
+<!--  CATALOG VARIABLE 1: Requested Cap Amount (Choice)           -->
+<!-- ============================================================ -->
+<item_option_new action="INSERT_OR_UPDATE">
+  <active>true</active>
+  <attributes/>
+  <cat_item display_value="Money Increase Request">mon0000000000000000000000itm0001</cat_item>
+  <choice_direction>down</choice_direction>
+  <choice_field/>
+  <choice_table/>
+  <create_roles/>
+  <default_value/>
+  <delete_roles/>
+  <dependent/>
+  <dependent_on_field/>
+  <description>Select the new maximum monetary cap you require for your application. Note: your current cap is $100.</description>
+  <do_not_clone>false</do_not_clone>
+  <dynamic_default_value/>
+  <dynamic_ref_qual/>
+  <dynamic_value_field/>
+  <dynamic_value_table/>
+  <field_label>Requested Cap Amount</field_label>
+  <help_text>Choose the cap level that meets your business need. Higher caps require more senior approvals.</help_text>
+  <hidden>false</hidden>
+  <ignore_ref_qual_on_create>false</ignore_ref_qual_on_create>
+  <include_none>false</include_none>
+  <lookup_label/>
+  <lookup_table/>
+  <lookup_unique>false</lookup_unique>
+  <lookup_value/>
+  <macro/>
+  <mandatory>true</mandatory>
+  <max_length>40</max_length>
+  <name>requested_cap_amount</name>
+  <no_sort>false</no_sort>
+  <on_change_link/>
+  <order>100</order>
+  <parm1/>
+  <parm2/>
+  <question_text>Select the new cap amount you are requesting:</question_text>
+  <read_roles/>
+  <rec_lookup_field/>
+  <rec_lookup_ref_qual/>
+  <rec_lookup_table/>
+  <record_current_row>false</record_current_row>
+  <reference/>
+  <reference_qual/>
+  <render_label>true</render_label>
+  <sc_item_option/>
+  <show_help>true</show_help>
+  <show_help_on_load>false</show_help_on_load>
+  <sp_widget/>
+  <summary_macro/>
+  <type>6</type>
+  <use_dynamic_default>false</use_dynamic_default>
+  <use_reference_qualifier>simple</use_reference_qualifier>
+  <variable_set/>
+  <visible_bundle>true</visible_bundle>
+  <visible_guide>true</visible_guide>
+  <visible_standalone>true</visible_standalone>
+  <write_roles/>
+  <sys_class_name>item_option_new</sys_class_name>
+  <sys_id>mon0000000000000000000000var0001</sys_id>
+  <sys_name>Money Increase Request requested_cap_amount</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>item_option_new_mon0000000000000000000000var0001</sys_update_name>
+</item_option_new>
+
+<!-- Choice: $200 -->
+<question_choice action="INSERT_OR_UPDATE">
+  <inactive>false</inactive>
+  <order>100</order>
+  <question display_value="Requested Cap Amount">mon0000000000000000000000var0001</question>
+  <sys_class_name>question_choice</sys_class_name>
+  <sys_id>mon0000000000000000000000cho0001</sys_id>
+  <sys_name>$200 - Requires GVP Approval</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>question_choice_mon0000000000000000000000cho0001</sys_update_name>
+  <text>$200 - Requires GVP Approval</text>
+  <value>200</value>
+</question_choice>
+
+<!-- Choice: $300 -->
+<question_choice action="INSERT_OR_UPDATE">
+  <inactive>false</inactive>
+  <order>200</order>
+  <question display_value="Requested Cap Amount">mon0000000000000000000000var0001</question>
+  <sys_class_name>question_choice</sys_class_name>
+  <sys_id>mon0000000000000000000000cho0002</sys_id>
+  <sys_name>$300 - Requires SVP Approval</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>question_choice_mon0000000000000000000000cho0002</sys_update_name>
+  <text>$300 - Requires SVP Approval</text>
+  <value>300</value>
+</question_choice>
+
+<!-- Choice: $500 -->
+<question_choice action="INSERT_OR_UPDATE">
+  <inactive>false</inactive>
+  <order>300</order>
+  <question display_value="Requested Cap Amount">mon0000000000000000000000var0001</question>
+  <sys_class_name>question_choice</sys_class_name>
+  <sys_id>mon0000000000000000000000cho0003</sys_id>
+  <sys_name>$500 - Requires VP Approval</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>question_choice_mon0000000000000000000000cho0003</sys_update_name>
+  <text>$500 - Requires VP Approval</text>
+  <value>500</value>
+</question_choice>
+
+<!-- ============================================================ -->
+<!--  CATALOG VARIABLE 2: Business Justification (Multi-line)     -->
+<!-- ============================================================ -->
+<item_option_new action="INSERT_OR_UPDATE">
+  <active>true</active>
+  <attributes/>
+  <cat_item display_value="Money Increase Request">mon0000000000000000000000itm0001</cat_item>
+  <choice_direction>down</choice_direction>
+  <choice_field/>
+  <choice_table/>
+  <create_roles/>
+  <default_value/>
+  <delete_roles/>
+  <dependent/>
+  <dependent_on_field/>
+  <description>Provide a clear business justification for why you need the increased monetary cap.</description>
+  <do_not_clone>false</do_not_clone>
+  <dynamic_default_value/>
+  <dynamic_ref_qual/>
+  <dynamic_value_field/>
+  <dynamic_value_table/>
+  <field_label>Business Justification</field_label>
+  <help_text>Explain the business reason for needing a higher cap. Include project name, team, and expected usage.</help_text>
+  <hidden>false</hidden>
+  <ignore_ref_qual_on_create>false</ignore_ref_qual_on_create>
+  <include_none>false</include_none>
+  <lookup_label/>
+  <lookup_table/>
+  <lookup_unique>false</lookup_unique>
+  <lookup_value/>
+  <macro/>
+  <mandatory>true</mandatory>
+  <max_length>4000</max_length>
+  <name>business_justification</name>
+  <no_sort>false</no_sort>
+  <on_change_link/>
+  <order>200</order>
+  <parm1/>
+  <parm2/>
+  <question_text>Provide your business justification for this cap increase:</question_text>
+  <read_roles/>
+  <rec_lookup_field/>
+  <rec_lookup_ref_qual/>
+  <rec_lookup_table/>
+  <record_current_row>false</record_current_row>
+  <reference/>
+  <reference_qual/>
+  <render_label>true</render_label>
+  <sc_item_option/>
+  <show_help>true</show_help>
+  <show_help_on_load>false</show_help_on_load>
+  <sp_widget/>
+  <summary_macro/>
+  <type>2</type>
+  <use_dynamic_default>false</use_dynamic_default>
+  <use_reference_qualifier>simple</use_reference_qualifier>
+  <variable_set/>
+  <visible_bundle>true</visible_bundle>
+  <visible_guide>true</visible_guide>
+  <visible_standalone>true</visible_standalone>
+  <write_roles/>
+  <sys_class_name>item_option_new</sys_class_name>
+  <sys_id>mon0000000000000000000000var0002</sys_id>
+  <sys_name>Money Increase Request business_justification</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>item_option_new_mon0000000000000000000000var0002</sys_update_name>
+</item_option_new>
+
+<!-- ============================================================ -->
+<!--  CATALOG VARIABLE 3: Application Name (Short Text)           -->
+<!-- ============================================================ -->
+<item_option_new action="INSERT_OR_UPDATE">
+  <active>true</active>
+  <attributes/>
+  <cat_item display_value="Money Increase Request">mon0000000000000000000000itm0001</cat_item>
+  <choice_direction>down</choice_direction>
+  <choice_field/>
+  <choice_table/>
+  <create_roles/>
+  <default_value/>
+  <delete_roles/>
+  <dependent/>
+  <dependent_on_field/>
+  <description>The name of the paid application for which you are requesting the cap increase.</description>
+  <do_not_clone>false</do_not_clone>
+  <dynamic_default_value/>
+  <dynamic_ref_qual/>
+  <dynamic_value_field/>
+  <dynamic_value_table/>
+  <field_label>Application Name</field_label>
+  <help_text>Enter the exact name of your paid application.</help_text>
+  <hidden>false</hidden>
+  <ignore_ref_qual_on_create>false</ignore_ref_qual_on_create>
+  <include_none>false</include_none>
+  <lookup_label/>
+  <lookup_table/>
+  <lookup_unique>false</lookup_unique>
+  <lookup_value/>
+  <macro/>
+  <mandatory>true</mandatory>
+  <max_length>200</max_length>
+  <name>application_name</name>
+  <no_sort>false</no_sort>
+  <on_change_link/>
+  <order>50</order>
+  <parm1/>
+  <parm2/>
+  <question_text>What is the name of the paid application?</question_text>
+  <read_roles/>
+  <rec_lookup_field/>
+  <rec_lookup_ref_qual/>
+  <rec_lookup_table/>
+  <record_current_row>false</record_current_row>
+  <reference/>
+  <reference_qual/>
+  <render_label>true</render_label>
+  <sc_item_option/>
+  <show_help>true</show_help>
+  <show_help_on_load>false</show_help_on_load>
+  <sp_widget/>
+  <summary_macro/>
+  <type>1</type>
+  <use_dynamic_default>false</use_dynamic_default>
+  <use_reference_qualifier>simple</use_reference_qualifier>
+  <variable_set/>
+  <visible_bundle>true</visible_bundle>
+  <visible_guide>true</visible_guide>
+  <visible_standalone>true</visible_standalone>
+  <write_roles/>
+  <sys_class_name>item_option_new</sys_class_name>
+  <sys_id>mon0000000000000000000000var0003</sys_id>
+  <sys_name>Money Increase Request application_name</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>item_option_new_mon0000000000000000000000var0003</sys_update_name>
+</item_option_new>
+
+<!-- ============================================================ -->
+<!--  SCRIPT INCLUDE: MoneyIncreaseHelper                          -->
+<!-- ============================================================ -->
+<sys_script_include action="INSERT_OR_UPDATE">
+  <access>public</access>
+  <active>true</active>
+  <api_name>global.MoneyIncreaseHelper</api_name>
+  <caller_access/>
+  <client_callable>false</client_callable>
+  <description>Helper utility for the Money Increase Approval Flow. Determines the correct approver role based on requested cap amount and updates the RITM upon approval.</description>
+  <name>MoneyIncreaseHelper</name>
+  <script><![CDATA[var MoneyIncreaseHelper = Class.create();
+MoneyIncreaseHelper.prototype = {
+    initialize: function() {},
+
+    /**
+     * Returns the approver group/role name based on the requested cap amount.
+     * $200 -> GVP
+     * $300 -> SVP
+     * $500 -> VP
+     * @param {string|number} capAmount - The requested cap amount
+     * @returns {string} - Role label for routing
+     */
+    getApproverRole: function(capAmount) {
+        var amount = parseInt(capAmount, 10);
+        if (amount === 200) return 'GVP';
+        if (amount === 300) return 'SVP';
+        if (amount === 500) return 'VP';
+        return 'UNKNOWN';
+    },
+
+    /**
+     * Looks up the approver user sys_id based on title matching the role label.
+     * Falls back to the RITM's assignment group manager if no exact title match found.
+     * @param {string} roleLabel - 'GVP', 'SVP', or 'VP'
+     * @returns {string} - sys_id of the approver user, or empty string
+     */
+    findApproverByTitle: function(roleLabel) {
+        var titleMap = {
+            'GVP': 'Group Vice President',
+            'SVP': 'Senior Vice President',
+            'VP':  'Vice President'
+        };
+        var titleSearch = titleMap[roleLabel] || roleLabel;
+        var gr = new GlideRecord('sys_user');
+        gr.addQuery('title', 'CONTAINS', titleSearch);
+        gr.addActiveQuery();
+        gr.setLimit(1);
+        gr.query();
+        if (gr.next()) {
+            return gr.getUniqueValue();
+        }
+        return '';
+    },
+
+    /**
+     * Updates the RITM after approval:
+     * - Sets work_notes with approval summary
+     * - Sets comments with approver's comments
+     * - Updates a custom approval_comments field if it exists
+     * - Sets RITM state to Approved (3)
+     * @param {string} ritmSysId    - sys_id of the sc_req_item record
+     * @param {string} approverSysId - sys_id of the approving user
+     * @param {string} approvalComments - Comments entered by the approver
+     * @param {string} capAmount     - The approved cap amount
+     */
+    updateRITMOnApproval: function(ritmSysId, approverSysId, approvalComments, capAmount) {
+        if (!ritmSysId) {
+            gs.error('MoneyIncreaseHelper.updateRITMOnApproval: ritmSysId is required.');
+            return;
+        }
+
+        var ritm = new GlideRecord('sc_req_item');
+        if (!ritm.get(ritmSysId)) {
+            gs.error('MoneyIncreaseHelper.updateRITMOnApproval: RITM not found - ' + ritmSysId);
+            return;
+        }
+
+        var approverName = '';
+        if (approverSysId) {
+            var approverGr = new GlideRecord('sys_user');
+            if (approverGr.get(approverSysId)) {
+                approverName = approverGr.getDisplayValue('name');
+            }
+        }
+
+        var roleLabel = this.getApproverRole(capAmount);
+        var now = new GlideDateTime().getDisplayValue();
+
+        ritm.work_notes =
+            '✅ Money Increase Request APPROVED\n' +
+            '------------------------------------\n' +
+            'Approved Cap Amount : $' + capAmount + '\n' +
+            'Approver Role       : ' + roleLabel + '\n' +
+            'Approved By         : ' + (approverName || 'N/A') + '\n' +
+            'Approval Date/Time  : ' + now + '\n' +
+            '------------------------------------\n' +
+            'Approver Comments   : ' + (approvalComments || 'No comments provided.');
+
+        ritm.comments =
+            'Your Money Increase Request for $' + capAmount + ' has been approved by ' +
+            (approverName || roleLabel) + '.\n\n' +
+            'Comments from approver: ' + (approvalComments || 'None.');
+
+        ritm.approval = 'approved';
+        ritm.state = 3;
+
+        if (ritm.isValidField('u_approval_comments')) {
+            ritm.u_approval_comments = approvalComments || '';
+        }
+
+        ritm.update();
+        gs.info('MoneyIncreaseHelper: RITM ' + ritmSysId + ' updated successfully after ' + roleLabel + ' approval.');
+    },
+
+    /**
+     * Updates the RITM after rejection:
+     * - Sets work_notes with rejection summary
+     * - Sets RITM state to Rejected (4)
+     * @param {string} ritmSysId         - sys_id of the sc_req_item record
+     * @param {string} approverSysId      - sys_id of the rejecting user
+     * @param {string} rejectionComments  - Comments entered by the approver
+     * @param {string} capAmount          - The requested (rejected) cap amount
+     */
+    updateRITMOnRejection: function(ritmSysId, approverSysId, rejectionComments, capAmount) {
+        if (!ritmSysId) {
+            gs.error('MoneyIncreaseHelper.updateRITMOnRejection: ritmSysId is required.');
+            return;
+        }
+
+        var ritm = new GlideRecord('sc_req_item');
+        if (!ritm.get(ritmSysId)) {
+            gs.error('MoneyIncreaseHelper.updateRITMOnRejection: RITM not found - ' + ritmSysId);
+            return;
+        }
+
+        var approverName = '';
+        if (approverSysId) {
+            var approverGr = new GlideRecord('sys_user');
+            if (approverGr.get(approverSysId)) {
+                approverName = approverGr.getDisplayValue('name');
+            }
+        }
+
+        var roleLabel = this.getApproverRole(capAmount);
+        var now = new GlideDateTime().getDisplayValue();
+
+        ritm.work_notes =
+            '❌ Money Increase Request REJECTED\n' +
+            '------------------------------------\n' +
+            'Requested Cap Amount : $' + capAmount + '\n' +
+            'Rejector Role        : ' + roleLabel + '\n' +
+            'Rejected By          : ' + (approverName || 'N/A') + '\n' +
+            'Rejection Date/Time  : ' + now + '\n' +
+            '------------------------------------\n' +
+            'Rejection Comments   : ' + (rejectionComments || 'No comments provided.');
+
+        ritm.comments =
+            'Your Money Increase Request for $' + capAmount + ' has been rejected by ' +
+            (approverName || roleLabel) + '.\n\n' +
+            'Reason: ' + (rejectionComments || 'None.');
+
+        ritm.approval = 'rejected';
+        ritm.state = 4;
+
+        if (ritm.isValidField('u_approval_comments')) {
+            ritm.u_approval_comments = rejectionComments || '';
+        }
+
+        ritm.update();
+        gs.info('MoneyIncreaseHelper: RITM ' + ritmSysId + ' updated after ' + roleLabel + ' rejection.');
+    },
+
+    type: 'MoneyIncreaseHelper'
+};
+]]></script>
+  <sys_class_name>sys_script_include</sys_class_name>
+  <sys_id>mon0000000000000000000000si00001</sys_id>
+  <sys_name>MoneyIncreaseHelper</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>sys_script_include_mon0000000000000000000000si00001</sys_update_name>
+</sys_script_include>
+
+<!-- ============================================================ -->
+<!--  FLOW DESIGNER - FLOW DEFINITION                              -->
+<!--  Flow: Money Increase Approval Flow                           -->
+<!--                                                               -->
+<!--  Trigger : Service Catalog - When RITM is created for        -->
+<!--            Catalog Item "Money Increase Request"              -->
+<!--                                                               -->
+<!--  Steps:                                                       -->
+<!--  1. Get Catalog Variables from RITM                          -->
+<!--  2. Branch: if cap == 200 → Ask GVP for Approval            -->
+<!--             if cap == 300 → Ask SVP for Approval            -->
+<!--             if cap == 500 → Ask VP  for Approval            -->
+<!--  3. On Approved branch:                                       -->
+<!--     a. Require approver comments (Ask for Approval enforces) -->
+<!--     b. Run Script: call MoneyIncreaseHelper.updateRITMOnApproval -->
+<!--  4. On Rejected branch:                                       -->
+<!--     a. Run Script: call MoneyIncreaseHelper.updateRITMOnRejection -->
+<!-- ============================================================ -->
+<sys_hub_flow action="INSERT_OR_UPDATE">
+  <access>package_private</access>
+  <active>true</active>
+  <annotations/>
+  <category display_value="Financial">mon0000000000000000000000fcat001</category>
+  <copied_from/>
+  <copied_from_name/>
+  <description>Handles the approval routing for Money Increase Requests. Routes to GVP ($200), SVP ($300), or VP ($500) based on the requested cap amount. Updates the RITM with approval comments on completion.</description>
+  <inputs/>
+  <internal_name>global.money_increase_approval_flow</internal_name>
+  <label>Money Increase Approval Flow</label>
+  <language>en</language>
+  <master display_value="Money Increase Approval Flow">mon0000000000000000000000flw0001</master>
+  <name>money_increase_approval_flow</name>
+  <outputs/>
+  <remote_trigger_id/>
+  <run_as display_value="System Administrator">6816f79cc0a8016401c5a33be04be441</run_as>
+  <run_as_user_field/>
+  <show_draft_actions>false</show_draft_actions>
+  <status>published</status>
+  <sys_class_name>sys_hub_flow</sys_class_name>
+  <sys_id>mon0000000000000000000000flw0001</sys_id>
+  <sys_name>Money Increase Approval Flow</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>sys_hub_flow_mon0000000000000000000000flw0001</sys_update_name>
+  <trigger_definition display_value="Service Catalog">sc_cat_item_delivery</trigger_definition>
+  <trigger_fields>
+    <trigger_field>
+      <name>cat_item</name>
+      <value>mon0000000000000000000000itm0001</value>
+    </trigger_field>
+  </trigger_fields>
+  <type>flow</type>
+  <valid>true</valid>
+</sys_hub_flow>
+
+<!-- ============================================================ -->
+<!--  FLOW LOGIC (sys_hub_action_type_flow) - Flow Actions         -->
+<!-- ============================================================ -->
+
+<!-- STEP 1: Get Catalog Variables -->
+<sys_hub_step action="INSERT_OR_UPDATE">
+  <access>package_private</access>
+  <active>true</active>
+  <annotation>Retrieve catalog variables (requested_cap_amount, business_justification, application_name) from the triggered RITM.</annotation>
+  <base_step_number>1</base_step_number>
+  <flow display_value="Money Increase Approval Flow">mon0000000000000000000000flw0001</flow>
+  <label>Get Catalog Variables from RITM</label>
+  <name>get_catalog_variables</name>
+  <order>100</order>
+  <outputs>
+    <output>
+      <name>requested_cap_amount</name>
+      <label>Requested Cap Amount</label>
+      <type>string</type>
+    </output>
+    <output>
+      <name>business_justification</name>
+      <label>Business Justification</label>
+      <type>string</type>
+    </output>
+    <output>
+      <name>application_name</name>
+      <label>Application Name</label>
+      <type>string</type>
+    </output>
+  </outputs>
+  <step_type display_value="Look Up Catalog Variables">lookup_catalog_variables</step_type>
+  <sys_class_name>sys_hub_step</sys_class_name>
+  <sys_id>mon0000000000000000000000stp0001</sys_id>
+  <sys_name>Money Increase Approval Flow - Get Catalog Variables from RITM</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>sys_hub_step_mon0000000000000000000000stp0001</sys_update_name>
+</sys_hub_step>
+
+<!-- STEP 2: Branch - Route based on cap amount -->
+<sys_hub_step action="INSERT_OR_UPDATE">
+  <access>package_private</access>
+  <active>true</active>
+  <annotation>Evaluate the requested cap amount and route to the appropriate approver: GVP ($200), SVP ($300), or VP ($500).</annotation>
+  <base_step_number>2</base_step_number>
+  <flow display_value="Money Increase Approval Flow">mon0000000000000000000000flw0001</flow>
+  <label>Route to Appropriate Approver</label>
+  <name>route_to_approver</name>
+  <order>200</order>
+  <step_type display_value="If">if</step_type>
+  <sys_class_name>sys_hub_step</sys_class_name>
+  <sys_id>mon0000000000000000000000stp0002</sys_id>
+  <sys_name>Money Increase Approval Flow - Route to Appropriate Approver</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>sys_hub_step_mon0000000000000000000000stp0002</sys_update_name>
+</sys_hub_step>
+
+<!-- STEP 3a: GVP Approval (cap == 200) -->
+<sys_hub_step action="INSERT_OR_UPDATE">
+  <access>package_private</access>
+  <active>true</active>
+  <annotation>Request approval from GVP. The approver must provide comments before approving or rejecting. This step uses the "Ask for Approval" action targeting users with the GVP title.</annotation>
+  <base_step_number>3</base_step_number>
+  <flow display_value="Money Increase Approval Flow">mon0000000000000000000000flw0001</flow>
+  <inputs>
+    <input>
+      <name>approval_field</name>
+      <value>Approve Money Increase to $200 for application: {{steps.get_catalog_variables.application_name}}</value>
+    </input>
+    <input>
+      <name>journal_field</name>
+      <value>comments</value>
+    </input>
+    <input>
+      <name>approve_label</name>
+      <value>Approved</value>
+    </input>
+    <input>
+      <name>reject_label</name>
+      <value>Rejected</value>
+    </input>
+  </inputs>
+  <label>GVP Approval - Request $200 Cap</label>
+  <name>gvp_approval</name>
+  <order>300</order>
+  <outputs>
+    <output>
+      <name>approval_state</name>
+      <label>Approval State</label>
+      <type>string</type>
+    </output>
+    <output>
+      <name>approver</name>
+      <label>Approver</label>
+      <type>reference</type>
+    </output>
+    <output>
+      <name>comments</name>
+      <label>Approver Comments</label>
+      <type>string</type>
+    </output>
+  </outputs>
+  <parent display_value="Route to Appropriate Approver">mon0000000000000000000000stp0002</parent>
+  <step_type display_value="Ask for Approval">ask_for_approval</step_type>
+  <sys_class_name>sys_hub_step</sys_class_name>
+  <sys_id>mon0000000000000000000000stp0003</sys_id>
+  <sys_name>Money Increase Approval Flow - GVP Approval Request $200 Cap</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>sys_hub_step_mon0000000000000000000000stp0003</sys_update_name>
+</sys_hub_step>
+
+<!-- STEP 3b: SVP Approval (cap == 300) -->
+<sys_hub_step action="INSERT_OR_UPDATE">
+  <access>package_private</access>
+  <active>true</active>
+  <annotation>Request approval from SVP. The approver must provide comments before approving or rejecting. Targets users with the SVP title.</annotation>
+  <base_step_number>3</base_step_number>
+  <flow display_value="Money Increase Approval Flow">mon0000000000000000000000flw0001</flow>
+  <inputs>
+    <input>
+      <name>approval_field</name>
+      <value>Approve Money Increase to $300 for application: {{steps.get_catalog_variables.application_name}}</value>
+    </input>
+    <input>
+      <name>journal_field</name>
+      <value>comments</value>
+    </input>
+    <input>
+      <name>approve_label</name>
+      <value>Approved</value>
+    </input>
+    <input>
+      <name>reject_label</name>
+      <value>Rejected</value>
+    </input>
+  </inputs>
+  <label>SVP Approval - Request $300 Cap</label>
+  <name>svp_approval</name>
+  <order>400</order>
+  <outputs>
+    <output>
+      <name>approval_state</name>
+      <label>Approval State</label>
+      <type>string</type>
+    </output>
+    <output>
+      <name>approver</name>
+      <label>Approver</label>
+      <type>reference</type>
+    </output>
+    <output>
+      <name>comments</name>
+      <label>Approver Comments</label>
+      <type>string</type>
+    </output>
+  </outputs>
+  <parent display_value="Route to Appropriate Approver">mon0000000000000000000000stp0002</parent>
+  <step_type display_value="Ask for Approval">ask_for_approval</step_type>
+  <sys_class_name>sys_hub_step</sys_class_name>
+  <sys_id>mon0000000000000000000000stp0004</sys_id>
+  <sys_name>Money Increase Approval Flow - SVP Approval Request $300 Cap</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>sys_hub_step_mon0000000000000000000000stp0004</sys_update_name>
+</sys_hub_step>
+
+<!-- STEP 3c: VP Approval (cap == 500) -->
+<sys_hub_step action="INSERT_OR_UPDATE">
+  <access>package_private</access>
+  <active>true</active>
+  <annotation>Request approval from VP. The approver must provide comments before approving or rejecting. Targets users with the VP title.</annotation>
+  <base_step_number>3</base_step_number>
+  <flow display_value="Money Increase Approval Flow">mon0000000000000000000000flw0001</flow>
+  <inputs>
+    <input>
+      <name>approval_field</name>
+      <value>Approve Money Increase to $500 for application: {{steps.get_catalog_variables.application_name}}</value>
+    </input>
+    <input>
+      <name>journal_field</name>
+      <value>comments</value>
+    </input>
+    <input>
+      <name>approve_label</name>
+      <value>Approved</value>
+    </input>
+    <input>
+      <name>reject_label</name>
+      <value>Rejected</value>
+    </input>
+  </inputs>
+  <label>VP Approval - Request $500 Cap</label>
+  <name>vp_approval</name>
+  <order>500</order>
+  <outputs>
+    <output>
+      <name>approval_state</name>
+      <label>Approval State</label>
+      <type>string</type>
+    </output>
+    <output>
+      <name>approver</name>
+      <label>Approver</label>
+      <type>reference</type>
+    </output>
+    <output>
+      <name>comments</name>
+      <label>Approver Comments</label>
+      <type>string</type>
+    </output>
+  </outputs>
+  <parent display_value="Route to Appropriate Approver">mon0000000000000000000000stp0002</parent>
+  <step_type display_value="Ask for Approval">ask_for_approval</step_type>
+  <sys_class_name>sys_hub_step</sys_class_name>
+  <sys_id>mon0000000000000000000000stp0005</sys_id>
+  <sys_name>Money Increase Approval Flow - VP Approval Request $500 Cap</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>sys_hub_step_mon0000000000000000000000stp0005</sys_update_name>
+</sys_hub_step>
+
+<!-- STEP 4: Update RITM on Approval (Script Step) -->
+<sys_hub_step action="INSERT_OR_UPDATE">
+  <access>package_private</access>
+  <active>true</active>
+  <annotation>On approval, update the RITM with approver comments, set approval state to Approved, and set state to Closed Complete.</annotation>
+  <base_step_number>4</base_step_number>
+  <flow display_value="Money Increase Approval Flow">mon0000000000000000000000flw0001</flow>
+  <label>Update RITM on Approval</label>
+  <name>update_ritm_on_approval</name>
+  <order>600</order>
+  <step_type display_value="Run Script">run_script</step_type>
+  <sys_class_name>sys_hub_step</sys_class_name>
+  <sys_id>mon0000000000000000000000stp0006</sys_id>
+  <sys_name>Money Increase Approval Flow - Update RITM on Approval</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>sys_hub_step_mon0000000000000000000000stp0006</sys_update_name>
+</sys_hub_step>
+
+<!-- STEP 5: Update RITM on Rejection (Script Step) -->
+<sys_hub_step action="INSERT_OR_UPDATE">
+  <access>package_private</access>
+  <active>true</active>
+  <annotation>On rejection, update the RITM with rejection comments and set state to Rejected.</annotation>
+  <base_step_number>5</base_step_number>
+  <flow display_value="Money Increase Approval Flow">mon0000000000000000000000flw0001</flow>
+  <label>Update RITM on Rejection</label>
+  <name>update_ritm_on_rejection</name>
+  <order>700</order>
+  <step_type display_value="Run Script">run_script</step_type>
+  <sys_class_name>sys_hub_step</sys_class_name>
+  <sys_id>mon0000000000000000000000stp0007</sys_id>
+  <sys_name>Money Increase Approval Flow - Update RITM on Rejection</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>sys_hub_step_mon0000000000000000000000stp0007</sys_update_name>
+</sys_hub_step>
+
+<!-- ============================================================ -->
+<!--  FLOW DESIGNER FLOW (JSON definition via sys_hub_flow_logic)  -->
+<!--                                                               -->
+<!--  This is the canonical Flow Designer JSON representation      -->
+<!--  containing all steps, branches, conditions, and scripts.     -->
+<!--  Import this through Flow Designer after committing the set.  -->
+<!-- ============================================================ -->
+<sys_hub_flow_logic action="INSERT_OR_UPDATE">
+  <flow display_value="Money Increase Approval Flow">mon0000000000000000000000flw0001</flow>
+  <logic><![CDATA[
+{
+  "id": "mon0000000000000000000000flw0001",
+  "label": "Money Increase Approval Flow",
+  "description": "Routes Money Increase Requests to GVP ($200), SVP ($300), or VP ($500) for approval. Updates RITM with approver comments on completion.",
+  "trigger": {
+    "id": "trigger_0001",
+    "type": "service_catalog",
+    "label": "Service Catalog - RITM Created",
+    "config": {
+      "table": "sc_req_item",
+      "catalog_item": "mon0000000000000000000000itm0001",
+      "condition": "state=1"
+    },
+    "outputs": {
+      "record": { "label": "Requested Item", "type": "GlideRecord<sc_req_item>" }
+    }
+  },
+  "steps": [
+    {
+      "id": "step_get_vars",
+      "label": "Get Catalog Variables from RITM",
+      "type": "action",
+      "action": "glide_catalog_lookup_variables",
+      "inputs": {
+        "ritm": "{{trigger.record.sys_id}}"
+      },
+      "outputs": {
+        "requested_cap_amount": { "label": "Requested Cap Amount", "type": "string" },
+        "business_justification": { "label": "Business Justification", "type": "string" },
+        "application_name": { "label": "Application Name", "type": "string" }
+      }
+    },
+    {
+      "id": "step_branch",
+      "label": "Route to Appropriate Approver",
+      "type": "if",
+      "conditions": [
+        {
+          "id": "branch_200",
+          "label": "$200 Cap - Route to GVP",
+          "condition": "{{step_get_vars.requested_cap_amount}} == '200'",
+          "steps": [
+            {
+              "id": "step_gvp_approval",
+              "label": "GVP Approval - Request $200 Cap",
+              "type": "action",
+              "action": "glide_approval_request",
+              "inputs": {
+                "record": "{{trigger.record}}",
+                "approval_field": "approval",
+                "approvers": [
+                  {
+                    "type": "title_lookup",
+                    "title": "Group Vice President"
+                  }
+                ],
+                "journal_field": "comments",
+                "instructions": "Please review this Money Increase Request for $200 cap on application: {{step_get_vars.application_name}}.\n\nBusiness Justification: {{step_get_vars.business_justification}}\n\nYou MUST provide comments before approving or rejecting.",
+                "require_comments": true,
+                "approve_label": "Approved",
+                "reject_label": "Rejected"
+              },
+              "outputs": {
+                "approval_state": { "label": "Approval State", "type": "string" },
+                "approver": { "label": "Approver", "type": "reference" },
+                "comments": { "label": "Approver Comments", "type": "string" }
+              }
+            },
+            {
+              "id": "step_branch_gvp_result",
+              "label": "Check GVP Decision",
+              "type": "if",
+              "conditions": [
+                {
+                  "id": "branch_gvp_approved",
+                  "label": "GVP Approved",
+                  "condition": "{{step_gvp_approval.approval_state}} == 'approved'",
+                  "steps": [
+                    {
+                      "id": "step_update_ritm_approval_200",
+                      "label": "Update RITM on GVP Approval",
+                      "type": "action",
+                      "action": "glide_run_script",
+                      "inputs": {
+                        "script": "(function(){\n  var helper = new MoneyIncreaseHelper();\n  helper.updateRITMOnApproval(\n    '{{trigger.record.sys_id}}',\n    '{{step_gvp_approval.approver.sys_id}}',\n    '{{step_gvp_approval.comments}}',\n    '200'\n  );\n})()"
+                      }
+                    }
+                  ]
+                }
+              ],
+              "else_steps": [
+                {
+                  "id": "step_update_ritm_rejection_200",
+                  "label": "Update RITM on GVP Rejection",
+                  "type": "action",
+                  "action": "glide_run_script",
+                  "inputs": {
+                    "script": "(function(){\n  var helper = new MoneyIncreaseHelper();\n  helper.updateRITMOnRejection(\n    '{{trigger.record.sys_id}}',\n    '{{step_gvp_approval.approver.sys_id}}',\n    '{{step_gvp_approval.comments}}',\n    '200'\n  );\n})()"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "branch_300",
+          "label": "$300 Cap - Route to SVP",
+          "condition": "{{step_get_vars.requested_cap_amount}} == '300'",
+          "steps": [
+            {
+              "id": "step_svp_approval",
+              "label": "SVP Approval - Request $300 Cap",
+              "type": "action",
+              "action": "glide_approval_request",
+              "inputs": {
+                "record": "{{trigger.record}}",
+                "approval_field": "approval",
+                "approvers": [
+                  {
+                    "type": "title_lookup",
+                    "title": "Senior Vice President"
+                  }
+                ],
+                "journal_field": "comments",
+                "instructions": "Please review this Money Increase Request for $300 cap on application: {{step_get_vars.application_name}}.\n\nBusiness Justification: {{step_get_vars.business_justification}}\n\nYou MUST provide comments before approving or rejecting.",
+                "require_comments": true,
+                "approve_label": "Approved",
+                "reject_label": "Rejected"
+              },
+              "outputs": {
+                "approval_state": { "label": "Approval State", "type": "string" },
+                "approver": { "label": "Approver", "type": "reference" },
+                "comments": { "label": "Approver Comments", "type": "string" }
+              }
+            },
+            {
+              "id": "step_branch_svp_result",
+              "label": "Check SVP Decision",
+              "type": "if",
+              "conditions": [
+                {
+                  "id": "branch_svp_approved",
+                  "label": "SVP Approved",
+                  "condition": "{{step_svp_approval.approval_state}} == 'approved'",
+                  "steps": [
+                    {
+                      "id": "step_update_ritm_approval_300",
+                      "label": "Update RITM on SVP Approval",
+                      "type": "action",
+                      "action": "glide_run_script",
+                      "inputs": {
+                        "script": "(function(){\n  var helper = new MoneyIncreaseHelper();\n  helper.updateRITMOnApproval(\n    '{{trigger.record.sys_id}}',\n    '{{step_svp_approval.approver.sys_id}}',\n    '{{step_svp_approval.comments}}',\n    '300'\n  );\n})()"
+                      }
+                    }
+                  ]
+                }
+              ],
+              "else_steps": [
+                {
+                  "id": "step_update_ritm_rejection_300",
+                  "label": "Update RITM on SVP Rejection",
+                  "type": "action",
+                  "action": "glide_run_script",
+                  "inputs": {
+                    "script": "(function(){\n  var helper = new MoneyIncreaseHelper();\n  helper.updateRITMOnRejection(\n    '{{trigger.record.sys_id}}',\n    '{{step_svp_approval.approver.sys_id}}',\n    '{{step_svp_approval.comments}}',\n    '300'\n  );\n})()"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "branch_500",
+          "label": "$500 Cap - Route to VP",
+          "condition": "{{step_get_vars.requested_cap_amount}} == '500'",
+          "steps": [
+            {
+              "id": "step_vp_approval",
+              "label": "VP Approval - Request $500 Cap",
+              "type": "action",
+              "action": "glide_approval_request",
+              "inputs": {
+                "record": "{{trigger.record}}",
+                "approval_field": "approval",
+                "approvers": [
+                  {
+                    "type": "title_lookup",
+                    "title": "Vice President"
+                  }
+                ],
+                "journal_field": "comments",
+                "instructions": "Please review this Money Increase Request for $500 cap on application: {{step_get_vars.application_name}}.\n\nBusiness Justification: {{step_get_vars.business_justification}}\n\nYou MUST provide comments before approving or rejecting.",
+                "require_comments": true,
+                "approve_label": "Approved",
+                "reject_label": "Rejected"
+              },
+              "outputs": {
+                "approval_state": { "label": "Approval State", "type": "string" },
+                "approver": { "label": "Approver", "type": "reference" },
+                "comments": { "label": "Approver Comments", "type": "string" }
+              }
+            },
+            {
+              "id": "step_branch_vp_result",
+              "label": "Check VP Decision",
+              "type": "if",
+              "conditions": [
+                {
+                  "id": "branch_vp_approved",
+                  "label": "VP Approved",
+                  "condition": "{{step_vp_approval.approval_state}} == 'approved'",
+                  "steps": [
+                    {
+                      "id": "step_update_ritm_approval_500",
+                      "label": "Update RITM on VP Approval",
+                      "type": "action",
+                      "action": "glide_run_script",
+                      "inputs": {
+                        "script": "(function(){\n  var helper = new MoneyIncreaseHelper();\n  helper.updateRITMOnApproval(\n    '{{trigger.record.sys_id}}',\n    '{{step_vp_approval.approver.sys_id}}',\n    '{{step_vp_approval.comments}}',\n    '500'\n  );\n})()"
+                      }
+                    }
+                  ]
+                }
+              ],
+              "else_steps": [
+                {
+                  "id": "step_update_ritm_rejection_500",
+                  "label": "Update RITM on VP Rejection",
+                  "type": "action",
+                  "action": "glide_run_script",
+                  "inputs": {
+                    "script": "(function(){\n  var helper = new MoneyIncreaseHelper();\n  helper.updateRITMOnRejection(\n    '{{trigger.record.sys_id}}',\n    '{{step_vp_approval.approver.sys_id}}',\n    '{{step_vp_approval.comments}}',\n    '500'\n  );\n})()"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+  ]]></logic>
+  <sys_class_name>sys_hub_flow_logic</sys_class_name>
+  <sys_id>mon0000000000000000000000fll0001</sys_id>
+  <sys_name>Money Increase Approval Flow Logic</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>sys_hub_flow_logic_mon0000000000000000000000fll0001</sys_update_name>
+</sys_hub_flow_logic>
+
+<!-- ============================================================ -->
+<!--  CATALOG ITEM → FLOW ASSOCIATION                              -->
+<!--  Links the catalog item to trigger the flow on RITM creation  -->
+<!-- ============================================================ -->
+<sc_cat_item_delivery_plan action="INSERT_OR_UPDATE">
+  <active>true</active>
+  <cat_item display_value="Money Increase Request">mon0000000000000000000000itm0001</cat_item>
+  <condition/>
+  <delivery_plan_type>flow</delivery_plan_type>
+  <flow display_value="Money Increase Approval Flow">mon0000000000000000000000flw0001</flow>
+  <order>100</order>
+  <sys_class_name>sc_cat_item_delivery_plan</sys_class_name>
+  <sys_id>mon0000000000000000000000del0001</sys_id>
+  <sys_name>Money Increase Request - Money Increase Approval Flow</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>sc_cat_item_delivery_plan_mon0000000000000000000000del0001</sys_update_name>
+</sc_cat_item_delivery_plan>
+
+<!-- ============================================================ -->
+<!--  NOTIFICATION: Approval Request Sent                          -->
+<!-- ============================================================ -->
+<sysevent_email_action action="INSERT_OR_UPDATE">
+  <active>true</active>
+  <category>approval.request</category>
+  <collection>sysapproval_approver</collection>
+  <condition>current.state == "requested" &amp;&amp; current.source_table == "sc_req_item"</condition>
+  <description>Notification sent to the approver when a Money Increase Request needs their approval.</description>
+  <event_name>approval.request</event_name>
+  <event_parm_1/>
+  <event_parm_2/>
+  <from>no-reply@company.com</from>
+  <importance>normal</importance>
+  <message><![CDATA[Dear ${approver.name},
+
+You have been assigned to review a Money Increase Request that requires your approval.
+
+REQUEST DETAILS
+---------------
+Requested Item  : ${document.cat_item.name}
+Requested By    : ${document.request.requested_for.name}
+RITM Number     : ${document.number}
+Application     : ${document.variables.application_name}
+Requested Cap   : $${document.variables.requested_cap_amount}
+Current Cap     : $100 (default)
+
+Business Justification:
+${document.variables.business_justification}
+
+APPROVAL INSTRUCTIONS
+---------------------
+Please review this request and provide your approval decision WITH COMMENTS.
+Comments are mandatory for both approval and rejection.
+
+Click here to view the request: ${URI_REF}
+
+Thank you,
+ServiceNow Automated Notification
+]]></message>
+  <message_html><![CDATA[<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+  <div style="background-color: #1c3f5e; padding: 20px; color: white;">
+    <h2 style="margin: 0;">Approval Required: Money Increase Request</h2>
+  </div>
+  <div style="padding: 20px; background-color: #f5f5f5;">
+    <p>Dear <strong>${approver.name}</strong>,</p>
+    <p>A Money Increase Request has been submitted and requires your approval.</p>
+    <table style="width:100%; border-collapse: collapse; background: white; border: 1px solid #ddd;">
+      <tr style="background-color: #1c3f5e; color: white;">
+        <th colspan="2" style="padding: 10px; text-align: left;">Request Details</th>
+      </tr>
+      <tr>
+        <td style="padding: 8px 12px; border: 1px solid #ddd; font-weight: bold; width: 40%;">RITM Number</td>
+        <td style="padding: 8px 12px; border: 1px solid #ddd;">${document.number}</td>
+      </tr>
+      <tr style="background: #f9f9f9;">
+        <td style="padding: 8px 12px; border: 1px solid #ddd; font-weight: bold;">Requested By</td>
+        <td style="padding: 8px 12px; border: 1px solid #ddd;">${document.request.requested_for.name}</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px 12px; border: 1px solid #ddd; font-weight: bold;">Application Name</td>
+        <td style="padding: 8px 12px; border: 1px solid #ddd;">${document.variables.application_name}</td>
+      </tr>
+      <tr style="background: #f9f9f9;">
+        <td style="padding: 8px 12px; border: 1px solid #ddd; font-weight: bold;">Current Cap</td>
+        <td style="padding: 8px 12px; border: 1px solid #ddd;">$100 (default)</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px 12px; border: 1px solid #ddd; font-weight: bold;">Requested Cap</td>
+        <td style="padding: 8px 12px; border: 1px solid #ddd; color: #d32f2f; font-weight: bold;">$${document.variables.requested_cap_amount}</td>
+      </tr>
+      <tr style="background: #f9f9f9;">
+        <td style="padding: 8px 12px; border: 1px solid #ddd; font-weight: bold;">Business Justification</td>
+        <td style="padding: 8px 12px; border: 1px solid #ddd;">${document.variables.business_justification}</td>
+      </tr>
+    </table>
+    <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px;">
+      <strong>&#9888; Important:</strong> You must provide comments when approving or rejecting this request.
+    </div>
+    <div style="margin-top: 20px; text-align: center;">
+      <a href="${URI_REF}" style="display: inline-block; padding: 12px 30px; background-color: #1c3f5e; color: white; text-decoration: none; border-radius: 4px; font-weight: bold;">Review Request</a>
+    </div>
+  </div>
+  <div style="padding: 10px 20px; background: #e0e0e0; font-size: 12px; color: #666;">
+    This is an automated notification from ServiceNow. Please do not reply to this email.
+  </div>
+</div>]]></message_html>
+  <name>Money Increase Request - Approval Notification</name>
+  <order>100</order>
+  <push_message_only>false</push_message_only>
+  <recipient_fields>approver</recipient_fields>
+  <recipient_groups/>
+  <recipient_users/>
+  <reply_to/>
+  <subject>Action Required: Money Increase Request ${document.number} - ${document.variables.application_name} ($${document.variables.requested_cap_amount} cap)</subject>
+  <sys_class_name>sysevent_email_action</sysevent_email_action>
+  <sys_id>mon0000000000000000000000not0001</sys_id>
+  <sys_name>Money Increase Request - Approval Notification</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>sysevent_email_action_mon0000000000000000000000not0001</sys_update_name>
+  <table>sysapproval_approver</table>
+  <weight>0</weight>
+</sysevent_email_action>
+
+<!-- ============================================================ -->
+<!--  NOTIFICATION: Approved                                        -->
+<!-- ============================================================ -->
+<sysevent_email_action action="INSERT_OR_UPDATE">
+  <active>true</active>
+  <category>approval.approved</category>
+  <collection>sc_req_item</collection>
+  <condition>current.approval == "approved" &amp;&amp; current.cat_item == "mon0000000000000000000000itm0001"</condition>
+  <description>Notification sent to the requester when their Money Increase Request is approved.</description>
+  <event_name>approval.approved</event_name>
+  <event_parm_1/>
+  <event_parm_2/>
+  <from>no-reply@company.com</from>
+  <importance>normal</importance>
+  <message><![CDATA[Dear ${requested_for.name},
+
+Your Money Increase Request has been APPROVED.
+
+REQUEST DETAILS
+---------------
+RITM Number     : ${number}
+Application     : ${variables.application_name}
+Approved Cap    : $${variables.requested_cap_amount}
+Previous Cap    : $100
+
+Please check the RITM work notes for full details including the approver's comments.
+
+Thank you,
+ServiceNow Automated Notification
+]]></message>
+  <message_html><![CDATA[<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+  <div style="background-color: #2e7d32; padding: 20px; color: white;">
+    <h2 style="margin: 0;">&#10003; Money Increase Request Approved</h2>
+  </div>
+  <div style="padding: 20px; background-color: #f5f5f5;">
+    <p>Dear <strong>${requested_for.name}</strong>,</p>
+    <p>Great news! Your Money Increase Request has been <strong style="color: #2e7d32;">APPROVED</strong>.</p>
+    <table style="width:100%; border-collapse: collapse; background: white; border: 1px solid #ddd;">
+      <tr style="background-color: #2e7d32; color: white;">
+        <th colspan="2" style="padding: 10px; text-align: left;">Approval Details</th>
+      </tr>
+      <tr>
+        <td style="padding: 8px 12px; border: 1px solid #ddd; font-weight: bold; width: 40%;">RITM Number</td>
+        <td style="padding: 8px 12px; border: 1px solid #ddd;">${number}</td>
+      </tr>
+      <tr style="background: #f9f9f9;">
+        <td style="padding: 8px 12px; border: 1px solid #ddd; font-weight: bold;">Application Name</td>
+        <td style="padding: 8px 12px; border: 1px solid #ddd;">${variables.application_name}</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px 12px; border: 1px solid #ddd; font-weight: bold;">Previous Cap</td>
+        <td style="padding: 8px 12px; border: 1px solid #ddd;">$100</td>
+      </tr>
+      <tr style="background: #f9f9f9;">
+        <td style="padding: 8px 12px; border: 1px solid #ddd; font-weight: bold;">Approved New Cap</td>
+        <td style="padding: 8px 12px; border: 1px solid #ddd; color: #2e7d32; font-weight: bold;">$${variables.requested_cap_amount}</td>
+      </tr>
+    </table>
+    <p style="margin-top: 15px;">Please view the RITM for full approval details and comments from your approver.</p>
+    <div style="margin-top: 20px; text-align: center;">
+      <a href="${URI_REF}" style="display: inline-block; padding: 12px 30px; background-color: #2e7d32; color: white; text-decoration: none; border-radius: 4px; font-weight: bold;">View Request</a>
+    </div>
+  </div>
+  <div style="padding: 10px 20px; background: #e0e0e0; font-size: 12px; color: #666;">
+    This is an automated notification from ServiceNow. Please do not reply to this email.
+  </div>
+</div>]]></message_html>
+  <name>Money Increase Request - Approved Notification</name>
+  <order>100</order>
+  <push_message_only>false</push_message_only>
+  <recipient_fields>requested_for</recipient_fields>
+  <recipient_groups/>
+  <recipient_users/>
+  <reply_to/>
+  <subject>Approved: Money Increase Request ${number} - ${variables.application_name} (New cap: $${variables.requested_cap_amount})</subject>
+  <sys_class_name>sysevent_email_action</sys_class_name>
+  <sys_id>mon0000000000000000000000not0002</sys_id>
+  <sys_name>Money Increase Request - Approved Notification</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>sysevent_email_action_mon0000000000000000000000not0002</sys_update_name>
+  <table>sc_req_item</table>
+  <weight>0</weight>
+</sysevent_email_action>
+
+<!-- ============================================================ -->
+<!--  NOTIFICATION: Rejected                                        -->
+<!-- ============================================================ -->
+<sysevent_email_action action="INSERT_OR_UPDATE">
+  <active>true</active>
+  <category>approval.rejected</category>
+  <collection>sc_req_item</collection>
+  <condition>current.approval == "rejected" &amp;&amp; current.cat_item == "mon0000000000000000000000itm0001"</condition>
+  <description>Notification sent to the requester when their Money Increase Request is rejected.</description>
+  <event_name>approval.rejected</event_name>
+  <event_parm_1/>
+  <event_parm_2/>
+  <from>no-reply@company.com</from>
+  <importance>normal</importance>
+  <message><![CDATA[Dear ${requested_for.name},
+
+Your Money Increase Request has been REJECTED.
+
+REQUEST DETAILS
+---------------
+RITM Number     : ${number}
+Application     : ${variables.application_name}
+Requested Cap   : $${variables.requested_cap_amount}
+
+Please check the RITM work notes for the rejection reason and approver comments.
+If you have questions, please contact your manager.
+
+Thank you,
+ServiceNow Automated Notification
+]]></message>
+  <message_html><![CDATA[<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+  <div style="background-color: #c62828; padding: 20px; color: white;">
+    <h2 style="margin: 0;">&#10007; Money Increase Request Rejected</h2>
+  </div>
+  <div style="padding: 20px; background-color: #f5f5f5;">
+    <p>Dear <strong>${requested_for.name}</strong>,</p>
+    <p>Unfortunately, your Money Increase Request has been <strong style="color: #c62828;">REJECTED</strong>.</p>
+    <table style="width:100%; border-collapse: collapse; background: white; border: 1px solid #ddd;">
+      <tr style="background-color: #c62828; color: white;">
+        <th colspan="2" style="padding: 10px; text-align: left;">Request Details</th>
+      </tr>
+      <tr>
+        <td style="padding: 8px 12px; border: 1px solid #ddd; font-weight: bold; width: 40%;">RITM Number</td>
+        <td style="padding: 8px 12px; border: 1px solid #ddd;">${number}</td>
+      </tr>
+      <tr style="background: #f9f9f9;">
+        <td style="padding: 8px 12px; border: 1px solid #ddd; font-weight: bold;">Application Name</td>
+        <td style="padding: 8px 12px; border: 1px solid #ddd;">${variables.application_name}</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px 12px; border: 1px solid #ddd; font-weight: bold;">Requested Cap</td>
+        <td style="padding: 8px 12px; border: 1px solid #ddd;">$${variables.requested_cap_amount}</td>
+      </tr>
+    </table>
+    <p style="margin-top: 15px;">Please view the RITM for the rejection reason and comments from your approver. Contact your manager if you have further questions.</p>
+    <div style="margin-top: 20px; text-align: center;">
+      <a href="${URI_REF}" style="display: inline-block; padding: 12px 30px; background-color: #c62828; color: white; text-decoration: none; border-radius: 4px; font-weight: bold;">View Request</a>
+    </div>
+  </div>
+  <div style="padding: 10px 20px; background: #e0e0e0; font-size: 12px; color: #666;">
+    This is an automated notification from ServiceNow. Please do not reply to this email.
+  </div>
+</div>]]></message_html>
+  <name>Money Increase Request - Rejected Notification</name>
+  <order>100</order>
+  <push_message_only>false</push_message_only>
+  <recipient_fields>requested_for</recipient_fields>
+  <recipient_groups/>
+  <recipient_users/>
+  <reply_to/>
+  <subject>Rejected: Money Increase Request ${number} - ${variables.application_name}</subject>
+  <sys_class_name>sysevent_email_action</sys_class_name>
+  <sys_id>mon0000000000000000000000not0003</sys_id>
+  <sys_name>Money Increase Request - Rejected Notification</sys_name>
+  <sys_package display_value="Global">global</sys_package>
+  <sys_scope display_value="Global">global</sys_scope>
+  <sys_update_name>sysevent_email_action_mon0000000000000000000000not0003</sys_update_name>
+  <table>sc_req_item</table>
+  <weight>0</weight>
+</sysevent_email_action>
+
+</unload>

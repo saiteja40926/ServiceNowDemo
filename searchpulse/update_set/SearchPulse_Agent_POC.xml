@@ -1,0 +1,1668 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<unload unload_date="2026-03-09">
+<!--
+================================================================================
+  SearchPulse Agent - Complete Update Set
+  Name   : SearchPulse_Agent_POC
+  Scope  : x_searchpulse
+  Version: 1.0.0
+
+  IMPORT STEPS:
+  1. System Update Sets > Retrieved Update Sets
+  2. "Import Update Set from XML" - upload this file
+  3. Preview Update Set (resolve conflicts if any)
+  4. Commit Update Set
+
+  COMPONENTS:
+  - Scoped App       : SearchPulse (x_searchpulse)
+  - Tables (3)       : x_searchpulse_session, x_searchpulse_article_reputation,
+                       x_searchpulse_summary_sources
+  - Script Includes  : SearchPulseSignalAPI, SearchPulseSessionClassifier,
+                       SearchPulseConfidence, SearchPulseBadgeEngine
+  - Scheduled Job    : SearchPulse Reputation Calculator (daily)
+  - UI Script        : SearchPulseTracker
+  - SP Widgets (2)   : Confidence Indicator, Trust Badge Display
+  - Flow             : SearchPulse Content Quality Monitor
+  - Reports (4)      : SearchPulse Insights dashboard widgets
+================================================================================
+-->
+
+<!-- SCOPED APPLICATION -->
+<sys_app action="INSERT_OR_UPDATE">
+  <active>true</active>
+  <application_type>scoped</application_type>
+  <name>SearchPulse</name>
+  <scope>x_searchpulse</scope>
+  <short_description>Agentic search trust system. Captures user signals, computes article reputation, displays AI Summary Confidence and Trust Badges.</short_description>
+  <sys_class_name>sys_app</sys_class_name>
+  <sys_id>xsp0000000000000000000000app0001</sys_id>
+  <sys_name>SearchPulse</sys_name>
+  <sys_package display_value="SearchPulse">x_searchpulse</sys_package>
+  <sys_scope display_value="SearchPulse">x_searchpulse</sys_scope>
+  <sys_update_name>sys_app_xsp0000000000000000000000app0001</sys_update_name>
+  <vendor>x_searchpulse</vendor>
+  <vendor_prefix>x_searchpulse</vendor_prefix>
+  <version>1.0.0</version>
+</sys_app>
+
+<!-- ROLE: admin -->
+<sys_user_role action="INSERT_OR_UPDATE">
+  <description>Full admin access to SearchPulse tables, jobs, and dashboards.</description>
+  <elevated_privilege>false</elevated_privilege>
+  <name>x_searchpulse.admin</name>
+  <suffix>admin</suffix>
+  <sys_class_name>sys_user_role</sys_class_name>
+  <sys_id>xsp0000000000000000000000rol0001</sys_id>
+  <sys_name>x_searchpulse.admin</sys_name>
+  <sys_package display_value="SearchPulse">x_searchpulse</sys_package>
+  <sys_scope display_value="SearchPulse">x_searchpulse</sys_scope>
+  <sys_update_name>sys_user_role_xsp0000000000000000000000rol0001</sys_update_name>
+</sys_user_role>
+
+<!-- ROLE: analyst -->
+<sys_user_role action="INSERT_OR_UPDATE">
+  <description>Read-only access to SearchPulse analytics and reputation records.</description>
+  <elevated_privilege>false</elevated_privilege>
+  <name>x_searchpulse.analyst</name>
+  <suffix>analyst</suffix>
+  <sys_class_name>sys_user_role</sys_class_name>
+  <sys_id>xsp0000000000000000000000rol0002</sys_id>
+  <sys_name>x_searchpulse.analyst</sys_name>
+  <sys_package display_value="SearchPulse">x_searchpulse</sys_package>
+  <sys_scope display_value="SearchPulse">x_searchpulse</sys_scope>
+  <sys_update_name>sys_user_role_xsp0000000000000000000000rol0002</sys_update_name>
+</sys_user_role>
+
+<!-- TABLE 1: x_searchpulse_session (Search Session) -->
+<sys_db_object action="INSERT_OR_UPDATE">
+  <access>public</access>
+  <create_access>true</create_access>
+  <delete_access>false</delete_access>
+  <is_extendable>false</is_extendable>
+  <label>Search Session</label>
+  <name>x_searchpulse_session</name>
+  <read_access>true</read_access>
+  <update_access>true</update_access>
+  <sys_class_name>sys_db_object</sys_class_name>
+  <sys_id>xsp0000000000000000000000tbl0001</sys_id>
+  <sys_name>x_searchpulse_session</sys_name>
+  <sys_package display_value="SearchPulse">x_searchpulse</sys_package>
+  <sys_scope display_value="SearchPulse">x_searchpulse</sys_scope>
+  <sys_update_name>sys_db_object_xsp0000000000000000000000tbl0001</sys_update_name>
+</sys_db_object>
+
+<sys_dictionary action="INSERT_OR_UPDATE"><active>true</active><column_label>Session ID</column_label><element>session_id</element><internal_type>string</internal_type><label>Session ID</label><length>100</length><max_length>100</max_length><mandatory>true</mandatory><name>x_searchpulse_session</name><unique>true</unique><sys_class_name>sys_dictionary</sys_class_name><sys_id>xsp000000000000000000000fld10001</sys_id><sys_name>x_searchpulse_session session_id</sys_name><sys_package display_value="SearchPulse">x_searchpulse</sys_package><sys_scope display_value="SearchPulse">x_searchpulse</sys_scope><sys_update_name>sys_dictionary_xsp000000000000000000000fld10001</sys_update_name></sys_dictionary>
+
+<sys_dictionary action="INSERT_OR_UPDATE"><active>true</active><column_label>User</column_label><element>user</element><internal_type>reference</internal_type><label>User</label><mandatory>false</mandatory><name>x_searchpulse_session</name><reference>sys_user</reference><sys_class_name>sys_dictionary</sys_class_name><sys_id>xsp000000000000000000000fld10002</sys_id><sys_name>x_searchpulse_session user</sys_name><sys_package display_value="SearchPulse">x_searchpulse</sys_package><sys_scope display_value="SearchPulse">x_searchpulse</sys_scope><sys_update_name>sys_dictionary_xsp000000000000000000000fld10002</sys_update_name></sys_dictionary>
+
+<sys_dictionary action="INSERT_OR_UPDATE"><active>true</active><column_label>Query</column_label><element>query</element><internal_type>string</internal_type><label>Query</label><length>500</length><max_length>500</max_length><mandatory>true</mandatory><name>x_searchpulse_session</name><sys_class_name>sys_dictionary</sys_class_name><sys_id>xsp000000000000000000000fld10003</sys_id><sys_name>x_searchpulse_session query</sys_name><sys_package display_value="SearchPulse">x_searchpulse</sys_package><sys_scope display_value="SearchPulse">x_searchpulse</sys_scope><sys_update_name>sys_dictionary_xsp000000000000000000000fld10003</sys_update_name></sys_dictionary>
+
+<sys_dictionary action="INSERT_OR_UPDATE"><active>true</active><choice>1</choice><column_label>Summary Feedback</column_label><default_value>none</default_value><element>summary_feedback</element><internal_type>string</internal_type><label>Summary Feedback</label><length>10</length><mandatory>false</mandatory><name>x_searchpulse_session</name><sys_class_name>sys_dictionary</sys_class_name><sys_id>xsp000000000000000000000fld10004</sys_id><sys_name>x_searchpulse_session summary_feedback</sys_name><sys_package display_value="SearchPulse">x_searchpulse</sys_package><sys_scope display_value="SearchPulse">x_searchpulse</sys_scope><sys_update_name>sys_dictionary_xsp000000000000000000000fld10004</sys_update_name></sys_dictionary>
+
+<sys_choice action="INSERT_OR_UPDATE"><element>summary_feedback</element><inactive>false</inactive><label>Up</label><name>x_searchpulse_session</name><sequence>0</sequence><sys_id>xsp000000000000000000000cho10001</sys_id><sys_package display_value="SearchPulse">x_searchpulse</sys_package><sys_scope display_value="SearchPulse">x_searchpulse</sys_scope><sys_update_name>sys_choice_xsp000000000000000000000cho10001</sys_update_name><value>up</value></sys_choice>
+<sys_choice action="INSERT_OR_UPDATE"><element>summary_feedback</element><inactive>false</inactive><label>Down</label><name>x_searchpulse_session</name><sequence>1</sequence><sys_id>xsp000000000000000000000cho10002</sys_id><sys_package display_value="SearchPulse">x_searchpulse</sys_package><sys_scope display_value="SearchPulse">x_searchpulse</sys_scope><sys_update_name>sys_choice_xsp000000000000000000000cho10002</sys_update_name><value>down</value></sys_choice>
+<sys_choice action="INSERT_OR_UPDATE"><element>summary_feedback</element><inactive>false</inactive><label>None</label><name>x_searchpulse_session</name><sequence>2</sequence><sys_id>xsp000000000000000000000cho10003</sys_id><sys_package display_value="SearchPulse">x_searchpulse</sys_package><sys_scope display_value="SearchPulse">x_searchpulse</sys_scope><sys_update_name>sys_choice_xsp000000000000000000000cho10003</sys_update_name><value>none</value></sys_choice>
+
+<sys_dictionary action="INSERT_OR_UPDATE"><active>true</active><column_label>Scrolled Summary</column_label><default_value>false</default_value><element>scrolled_summary</element><internal_type>boolean</internal_type><label>Scrolled Summary</label><mandatory>false</mandatory><name>x_searchpulse_session</name><sys_class_name>sys_dictionary</sys_class_name><sys_id>xsp000000000000000000000fld10005</sys_id><sys_name>x_searchpulse_session scrolled_summary</sys_name><sys_package display_value="SearchPulse">x_searchpulse</sys_package><sys_scope display_value="SearchPulse">x_searchpulse</sys_scope><sys_update_name>sys_dictionary_xsp000000000000000000000fld10005</sys_update_name></sys_dictionary>
+
+<sys_dictionary action="INSERT_OR_UPDATE"><active>true</active><column_label>Result Clicked</column_label><default_value>false</default_value><element>result_clicked</element><internal_type>boolean</internal_type><label>Result Clicked</label><mandatory>false</mandatory><name>x_searchpulse_session</name><sys_class_name>sys_dictionary</sys_class_name><sys_id>xsp000000000000000000000fld10006</sys_id><sys_name>x_searchpulse_session result_clicked</sys_name><sys_package display_value="SearchPulse">x_searchpulse</sys_package><sys_scope display_value="SearchPulse">x_searchpulse</sys_scope><sys_update_name>sys_dictionary_xsp000000000000000000000fld10006</sys_update_name></sys_dictionary>
+
+<sys_dictionary action="INSERT_OR_UPDATE"><active>true</active><column_label>Clicked Article</column_label><element>clicked_article</element><internal_type>reference</internal_type><label>Clicked Article</label><mandatory>false</mandatory><name>x_searchpulse_session</name><reference>kb_knowledge</reference><sys_class_name>sys_dictionary</sys_class_name><sys_id>xsp000000000000000000000fld10007</sys_id><sys_name>x_searchpulse_session clicked_article</sys_name><sys_package display_value="SearchPulse">x_searchpulse</sys_package><sys_scope display_value="SearchPulse">x_searchpulse</sys_scope><sys_update_name>sys_dictionary_xsp000000000000000000000fld10007</sys_update_name></sys_dictionary>
+
+<sys_dictionary action="INSERT_OR_UPDATE"><active>true</active><column_label>Came Back</column_label><default_value>false</default_value><element>came_back</element><internal_type>boolean</internal_type><label>Came Back</label><mandatory>false</mandatory><name>x_searchpulse_session</name><sys_class_name>sys_dictionary</sys_class_name><sys_id>xsp000000000000000000000fld10008</sys_id><sys_name>x_searchpulse_session came_back</sys_name><sys_package display_value="SearchPulse">x_searchpulse</sys_package><sys_scope display_value="SearchPulse">x_searchpulse</sys_scope><sys_update_name>sys_dictionary_xsp000000000000000000000fld10008</sys_update_name></sys_dictionary>
+
+<sys_dictionary action="INSERT_OR_UPDATE"><active>true</active><column_label>Reformulated</column_label><default_value>false</default_value><element>reformulated</element><internal_type>boolean</internal_type><label>Reformulated</label><mandatory>false</mandatory><name>x_searchpulse_session</name><sys_class_name>sys_dictionary</sys_class_name><sys_id>xsp000000000000000000000fld10009</sys_id><sys_name>x_searchpulse_session reformulated</sys_name><sys_package display_value="SearchPulse">x_searchpulse</sys_package><sys_scope display_value="SearchPulse">x_searchpulse</sys_scope><sys_update_name>sys_dictionary_xsp000000000000000000000fld10009</sys_update_name></sys_dictionary>
+
+<sys_dictionary action="INSERT_OR_UPDATE"><active>true</active><choice>1</choice><column_label>Outcome</column_label><default_value>B</default_value><element>outcome</element><internal_type>string</internal_type><label>Outcome</label><length>5</length><mandatory>false</mandatory><name>x_searchpulse_session</name><sys_class_name>sys_dictionary</sys_class_name><sys_id>xsp000000000000000000000fld1000a</sys_id><sys_name>x_searchpulse_session outcome</sys_name><sys_package display_value="SearchPulse">x_searchpulse</sys_package><sys_scope display_value="SearchPulse">x_searchpulse</sys_scope><sys_update_name>sys_dictionary_xsp000000000000000000000fld1000a</sys_update_name></sys_dictionary>
+
+<sys_choice action="INSERT_OR_UPDATE"><element>outcome</element><inactive>false</inactive><label>A - Summary Satisfied</label><name>x_searchpulse_session</name><sequence>0</sequence><sys_id>xsp000000000000000000000cho1000a</sys_id><sys_package display_value="SearchPulse">x_searchpulse</sys_package><sys_scope display_value="SearchPulse">x_searchpulse</sys_scope><sys_update_name>sys_choice_xsp000000000000000000000cho1000a</sys_update_name><value>A</value></sys_choice>
+<sys_choice action="INSERT_OR_UPDATE"><element>outcome</element><inactive>false</inactive><label>B - Ambiguous</label><name>x_searchpulse_session</name><sequence>1</sequence><sys_id>xsp000000000000000000000cho1000b</sys_id><sys_package display_value="SearchPulse">x_searchpulse</sys_package><sys_scope display_value="SearchPulse">x_searchpulse</sys_scope><sys_update_name>sys_choice_xsp000000000000000000000cho1000b</sys_update_name><value>B</value></sys_choice>
+<sys_choice action="INSERT_OR_UPDATE"><element>outcome</element><inactive>false</inactive><label>C - Drilled Down Success</label><name>x_searchpulse_session</name><sequence>2</sequence><sys_id>xsp000000000000000000000cho1000c</sys_id><sys_package display_value="SearchPulse">x_searchpulse</sys_package><sys_scope display_value="SearchPulse">x_searchpulse</sys_scope><sys_update_name>sys_choice_xsp000000000000000000000cho1000c</sys_update_name><value>C</value></sys_choice>
+<sys_choice action="INSERT_OR_UPDATE"><element>outcome</element><inactive>false</inactive><label>D - Result Failed</label><name>x_searchpulse_session</name><sequence>3</sequence><sys_id>xsp000000000000000000000cho1000d</sys_id><sys_package display_value="SearchPulse">x_searchpulse</sys_package><sys_scope display_value="SearchPulse">x_searchpulse</sys_scope><sys_update_name>sys_choice_xsp000000000000000000000cho1000d</sys_update_name><value>D</value></sys_choice>
+<sys_choice action="INSERT_OR_UPDATE"><element>outcome</element><inactive>false</inactive><label>E - Full Search Failure</label><name>x_searchpulse_session</name><sequence>4</sequence><sys_id>xsp000000000000000000000cho1000e</sys_id><sys_package display_value="SearchPulse">x_searchpulse</sys_package><sys_scope display_value="SearchPulse">x_searchpulse</sys_scope><sys_update_name>sys_choice_xsp000000000000000000000cho1000e</sys_update_name><value>E</value></sys_choice>
+<sys_choice action="INSERT_OR_UPDATE"><element>outcome</element><inactive>false</inactive><label>F - Summary Rejected</label><name>x_searchpulse_session</name><sequence>5</sequence><sys_id>xsp000000000000000000000cho1000f</sys_id><sys_package display_value="SearchPulse">x_searchpulse</sys_package><sys_scope display_value="SearchPulse">x_searchpulse</sys_scope><sys_update_name>sys_choice_xsp000000000000000000000cho1000f</sys_update_name><value>F</value></sys_choice>
+
+<sys_dictionary action="INSERT_OR_UPDATE"><active>true</active><column_label>Timestamp</column_label><element>timestamp</element><internal_type>glide_date_time</internal_type><label>Timestamp</label><mandatory>false</mandatory><name>x_searchpulse_session</name><sys_class_name>sys_dictionary</sys_class_name><sys_id>xsp000000000000000000000fld1000b</sys_id><sys_name>x_searchpulse_session timestamp</sys_name><sys_package display_value="SearchPulse">x_searchpulse</sys_package><sys_scope display_value="SearchPulse">x_searchpulse</sys_scope><sys_update_name>sys_dictionary_xsp000000000000000000000fld1000b</sys_update_name></sys_dictionary>
+
+<!-- TABLE 2: x_searchpulse_article_reputation -->
+<sys_db_object action="INSERT_OR_UPDATE">
+  <access>public</access><create_access>true</create_access><delete_access>false</delete_access>
+  <is_extendable>false</is_extendable><label>Article Reputation</label>
+  <name>x_searchpulse_article_reputation</name><read_access>true</read_access><update_access>true</update_access>
+  <sys_class_name>sys_db_object</sys_class_name><sys_id>xsp0000000000000000000000tbl0002</sys_id>
+  <sys_name>x_searchpulse_article_reputation</sys_name>
+  <sys_package display_value="SearchPulse">x_searchpulse</sys_package>
+  <sys_scope display_value="SearchPulse">x_searchpulse</sys_scope>
+  <sys_update_name>sys_db_object_xsp0000000000000000000000tbl0002</sys_update_name>
+</sys_db_object>
+
+<sys_dictionary action="INSERT_OR_UPDATE"><active>true</active><column_label>Article</column_label><element>article</element><internal_type>reference</internal_type><label>Article</label><mandatory>true</mandatory><name>x_searchpulse_article_reputation</name><reference>kb_knowledge</reference><sys_class_name>sys_dictionary</sys_class_name><sys_id>xsp000000000000000000000fld20001</sys_id><sys_name>x_searchpulse_article_reputation article</sys_name><sys_package display_value="SearchPulse">x_searchpulse</sys_package><sys_scope display_value="SearchPulse">x_searchpulse</sys_scope><sys_update_name>sys_dictionary_xsp000000000000000000000fld20001</sys_update_name></sys_dictionary>
+
+<sys_dictionary action="INSERT_OR_UPDATE"><active>true</active><column_label>Reputation Score</column_label><default_value>50</default_value><element>reputation_score</element><internal_type>integer</internal_type><label>Reputation Score</label><mandatory>false</mandatory><name>x_searchpulse_article_reputation</name><sys_class_name>sys_dictionary</sys_class_name><sys_id>xsp000000000000000000000fld20002</sys_id><sys_name>x_searchpulse_article_reputation reputation_score</sys_name><sys_package display_value="SearchPulse">x_searchpulse</sys_package><sys_scope display_value="SearchPulse">x_searchpulse</sys_scope><sys_update_name>sys_dictionary_xsp000000000000000000000fld20002</sys_update_name></sys_dictionary>
+
+<sys_dictionary action="INSERT_OR_UPDATE"><active>true</active><column_label>Positive Signals</column_label><default_value>0</default_value><element>positive_signals</element><internal_type>integer</internal_type><label>Positive Signals</label><mandatory>false</mandatory><name>x_searchpulse_article_reputation</name><sys_class_name>sys_dictionary</sys_class_name><sys_id>xsp000000000000000000000fld20003</sys_id><sys_name>x_searchpulse_article_reputation positive_signals</sys_name><sys_package display_value="SearchPulse">x_searchpulse</sys_package><sys_scope display_value="SearchPulse">x_searchpulse</sys_scope><sys_update_name>sys_dictionary_xsp000000000000000000000fld20003</sys_update_name></sys_dictionary>
+
+<sys_dictionary action="INSERT_OR_UPDATE"><active>true</active><column_label>Negative Signals</column_label><default_value>0</default_value><element>negative_signals</element><internal_type>integer</internal_type><label>Negative Signals</label><mandatory>false</mandatory><name>x_searchpulse_article_reputation</name><sys_class_name>sys_dictionary</sys_class_name><sys_id>xsp000000000000000000000fld20004</sys_id><sys_name>x_searchpulse_article_reputation negative_signals</sys_name><sys_package display_value="SearchPulse">x_searchpulse</sys_package><sys_scope display_value="SearchPulse">x_searchpulse</sys_scope><sys_update_name>sys_dictionary_xsp000000000000000000000fld20004</sys_update_name></sys_dictionary>
+
+<sys_dictionary action="INSERT_OR_UPDATE"><active>true</active><column_label>Sessions Count</column_label><default_value>0</default_value><element>sessions_count</element><internal_type>integer</internal_type><label>Sessions Count</label><mandatory>false</mandatory><name>x_searchpulse_article_reputation</name><sys_class_name>sys_dictionary</sys_class_name><sys_id>xsp000000000000000000000fld20005</sys_id><sys_name>x_searchpulse_article_reputation sessions_count</sys_name><sys_package display_value="SearchPulse">x_searchpulse</sys_package><sys_scope display_value="SearchPulse">x_searchpulse</sys_scope><sys_update_name>sys_dictionary_xsp000000000000000000000fld20005</sys_update_name></sys_dictionary>
+
+<sys_dictionary action="INSERT_OR_UPDATE"><active>true</active><column_label>Last Calculated</column_label><element>last_calculated</element><internal_type>glide_date_time</internal_type><label>Last Calculated</label><mandatory>false</mandatory><name>x_searchpulse_article_reputation</name><sys_class_name>sys_dictionary</sys_class_name><sys_id>xsp000000000000000000000fld20006</sys_id><sys_name>x_searchpulse_article_reputation last_calculated</sys_name><sys_package display_value="SearchPulse">x_searchpulse</sys_package><sys_scope display_value="SearchPulse">x_searchpulse</sys_scope><sys_update_name>sys_dictionary_xsp000000000000000000000fld20006</sys_update_name></sys_dictionary>
+
+<!-- TABLE 3: x_searchpulse_summary_sources -->
+<sys_db_object action="INSERT_OR_UPDATE">
+  <access>public</access><create_access>true</create_access><delete_access>false</delete_access>
+  <is_extendable>false</is_extendable><label>Summary Source Trace</label>
+  <name>x_searchpulse_summary_sources</name><read_access>true</read_access><update_access>true</update_access>
+  <sys_class_name>sys_db_object</sys_class_name><sys_id>xsp0000000000000000000000tbl0003</sys_id>
+  <sys_name>x_searchpulse_summary_sources</sys_name>
+  <sys_package display_value="SearchPulse">x_searchpulse</sys_package>
+  <sys_scope display_value="SearchPulse">x_searchpulse</sys_scope>
+  <sys_update_name>sys_db_object_xsp0000000000000000000000tbl0003</sys_update_name>
+</sys_db_object>
+
+<sys_dictionary action="INSERT_OR_UPDATE"><active>true</active><column_label>Session</column_label><element>session</element><internal_type>reference</internal_type><label>Session</label><mandatory>true</mandatory><name>x_searchpulse_summary_sources</name><reference>x_searchpulse_session</reference><sys_class_name>sys_dictionary</sys_class_name><sys_id>xsp000000000000000000000fld30001</sys_id><sys_name>x_searchpulse_summary_sources session</sys_name><sys_package display_value="SearchPulse">x_searchpulse</sys_package><sys_scope display_value="SearchPulse">x_searchpulse</sys_scope><sys_update_name>sys_dictionary_xsp000000000000000000000fld30001</sys_update_name></sys_dictionary>
+
+<sys_dictionary action="INSERT_OR_UPDATE"><active>true</active><column_label>Article</column_label><element>article</element><internal_type>reference</internal_type><label>Article</label><mandatory>true</mandatory><name>x_searchpulse_summary_sources</name><reference>kb_knowledge</reference><sys_class_name>sys_dictionary</sys_class_name><sys_id>xsp000000000000000000000fld30002</sys_id><sys_name>x_searchpulse_summary_sources article</sys_name><sys_package display_value="SearchPulse">x_searchpulse</sys_package><sys_scope display_value="SearchPulse">x_searchpulse</sys_scope><sys_update_name>sys_dictionary_xsp000000000000000000000fld30002</sys_update_name></sys_dictionary>
+
+<sys_dictionary action="INSERT_OR_UPDATE"><active>true</active><column_label>Citation Weight</column_label><default_value>1</default_value><element>citation_weight</element><internal_type>integer</internal_type><label>Citation Weight</label><mandatory>false</mandatory><name>x_searchpulse_summary_sources</name><sys_class_name>sys_dictionary</sys_class_name><sys_id>xsp000000000000000000000fld30003</sys_id><sys_name>x_searchpulse_summary_sources citation_weight</sys_name><sys_package display_value="SearchPulse">x_searchpulse</sys_package><sys_scope display_value="SearchPulse">x_searchpulse</sys_scope><sys_update_name>sys_dictionary_xsp000000000000000000000fld30003</sys_update_name></sys_dictionary>
+
+
+<!-- SCRIPT INCLUDE 1: SearchPulseSignalAPI (client-callable via GlideAjax) -->
+<sys_script_include action="INSERT_OR_UPDATE">
+  <access>public</access>
+  <active>true</active>
+  <api_name>x_searchpulse.SearchPulseSignalAPI</api_name>
+  <client_callable>true</client_callable>
+  <description>Captures search signals from UI scripts via GlideAjax. Signals: summary_up, summary_down, scroll, click, return, reformulate. Updates x_searchpulse_session fields.</description>
+  <name>SearchPulseSignalAPI</name>
+  <script><![CDATA[var SearchPulseSignalAPI = Class.create();
+SearchPulseSignalAPI.prototype = Object.extendsObject(AbstractAjaxProcessor, {
+    type: 'SearchPulseSignalAPI',
+
+    /**
+     * captureSignal(session, signal, article)
+     * Called via GlideAjax from SearchPulseTracker UI Script.
+     *
+     * GlideAjax parameters:
+     *   sysparm_session  - session_id string (from x_searchpulse_session)
+     *   sysparm_signal   - one of: summary_up, summary_down, scroll, click, return, reformulate
+     *   sysparm_article  - (optional) sys_id of kb_knowledge for 'click' signal
+     *
+     * Returns JSON: { status:'ok'|'error', signal:'...', updated:true|false }
+     */
+    captureSignal: function() {
+        var sessionId = this.getParameter('sysparm_session') || '';
+        var signal    = this.getParameter('sysparm_signal')  || '';
+        var article   = this.getParameter('sysparm_article') || '';
+
+        if (!sessionId || !signal) {
+            return JSON.stringify({ status: 'error', message: 'Missing session or signal parameter' });
+        }
+
+        var gr = new GlideRecord('x_searchpulse_session');
+        gr.addQuery('session_id', sessionId);
+        gr.setLimit(1);
+        gr.query();
+
+        if (!gr.next()) {
+            return JSON.stringify({ status: 'error', message: 'Session not found: ' + sessionId });
+        }
+
+        var updated = false;
+
+        switch (signal) {
+            case 'summary_up':
+                if (gr.getValue('summary_feedback') === 'none') {
+                    gr.setValue('summary_feedback', 'up');
+                    updated = true;
+                }
+                break;
+
+            case 'summary_down':
+                if (gr.getValue('summary_feedback') === 'none') {
+                    gr.setValue('summary_feedback', 'down');
+                    updated = true;
+                }
+                break;
+
+            case 'scroll':
+                if (gr.getValue('scrolled_summary') !== '1') {
+                    gr.setValue('scrolled_summary', true);
+                    updated = true;
+                }
+                break;
+
+            case 'click':
+                if (article && gr.getValue('result_clicked') !== '1') {
+                    var kbGR = new GlideRecord('kb_knowledge');
+                    if (kbGR.get(article)) {
+                        gr.setValue('clicked_article', article);
+                        gr.setValue('result_clicked', true);
+                        updated = true;
+                    }
+                }
+                break;
+
+            case 'return':
+                if (gr.getValue('came_back') !== '1') {
+                    gr.setValue('came_back', true);
+                    updated = true;
+                }
+                break;
+
+            case 'reformulate':
+                if (gr.getValue('reformulated') !== '1') {
+                    gr.setValue('reformulated', true);
+                    updated = true;
+                }
+                break;
+
+            default:
+                return JSON.stringify({ status: 'error', message: 'Unknown signal: ' + signal });
+        }
+
+        if (updated) {
+            gr.update();
+        }
+
+        gs.log('SearchPulseSignalAPI: session=' + sessionId + ' signal=' + signal + ' updated=' + updated, 'SearchPulse');
+        return JSON.stringify({ status: 'ok', signal: signal, updated: updated });
+    },
+
+    /**
+     * createSession - creates a new x_searchpulse_session record.
+     * Parameters: sysparm_session_id, sysparm_query, sysparm_user
+     */
+    createSession: function() {
+        var sessionId = this.getParameter('sysparm_session_id') ||
+                        gs.generateGUID().replace(/-/g, '').substring(0, 32);
+        var query     = this.getParameter('sysparm_query') || '';
+        var userId    = this.getParameter('sysparm_user')  || '';
+
+        if (!query) {
+            return JSON.stringify({ status: 'error', message: 'query is required' });
+        }
+
+        /* idempotent - return existing if already created */
+        var chk = new GlideRecord('x_searchpulse_session');
+        chk.addQuery('session_id', sessionId);
+        chk.setLimit(1);
+        chk.query();
+        if (chk.next()) {
+            return JSON.stringify({ status: 'ok', session_id: sessionId, sys_id: chk.getUniqueValue(), existed: true });
+        }
+
+        var gr = new GlideRecord('x_searchpulse_session');
+        gr.initialize();
+        gr.setValue('session_id',       sessionId);
+        gr.setValue('query',            query);
+        gr.setValue('summary_feedback', 'none');
+        gr.setValue('scrolled_summary', false);
+        gr.setValue('result_clicked',   false);
+        gr.setValue('came_back',        false);
+        gr.setValue('reformulated',     false);
+        gr.setValue('outcome',          'B');
+        gr.setValue('timestamp',        new GlideDateTime().getValue());
+
+        if (userId) {
+            var uGR = new GlideRecord('sys_user');
+            if (uGR.get(userId)) { gr.setValue('user', userId); }
+        }
+
+        var sysId = gr.insert();
+        gs.log('SearchPulseSignalAPI: created session id=' + sessionId + ' query=' + query, 'SearchPulse');
+        return JSON.stringify({ status: 'ok', session_id: sessionId, sys_id: sysId, existed: false });
+    }
+});]]></script>
+  <sys_class_name>sys_script_include</sys_class_name>
+  <sys_id>xsp0000000000000000000000si00001</sys_id>
+  <sys_name>SearchPulseSignalAPI</sys_name>
+  <sys_package display_value="SearchPulse">x_searchpulse</sys_package>
+  <sys_scope display_value="SearchPulse">x_searchpulse</sys_scope>
+  <sys_update_name>sys_script_include_xsp0000000000000000000000si00001</sys_update_name>
+</sys_script_include>
+
+<!-- SCRIPT INCLUDE 2: SearchPulseSessionClassifier -->
+<sys_script_include action="INSERT_OR_UPDATE">
+  <access>public</access>
+  <active>true</active>
+  <api_name>x_searchpulse.SearchPulseSessionClassifier</api_name>
+  <client_callable>false</client_callable>
+  <description>Classifies search sessions into outcomes A-F. A=Summary Satisfied, B=Ambiguous, C=Drilled Down Success, D=Result Failed, E=Full Search Failure, F=Summary Rejected.</description>
+  <name>SearchPulseSessionClassifier</name>
+  <script><![CDATA[var SearchPulseSessionClassifier = Class.create();
+SearchPulseSessionClassifier.prototype = {
+    type: 'SearchPulseSessionClassifier',
+
+    /**
+     * classify(sessionGR)
+     * Classifies a single session GlideRecord and persists outcome field.
+     *
+     * Outcome rules (per spec):
+     *   A  summary_feedback=up AND result_clicked=false
+     *   C  result_clicked=true AND came_back=false
+     *   D  result_clicked=true AND came_back=true AND reformulated=false
+     *   E  reformulated=true
+     *   F  summary_feedback=down
+     *   B  (default - ambiguous)
+     *
+     * @param  sessionGR  GlideRecord on x_searchpulse_session
+     * @return outcome letter string
+     */
+    classify: function(sessionGR) {
+        if (!sessionGR || !sessionGR.isValidRecord()) {
+            gs.logWarning('SearchPulseSessionClassifier: invalid record', 'SearchPulse');
+            return 'B';
+        }
+
+        var outcome = this._determineOutcome(sessionGR);
+        sessionGR.setValue('outcome', outcome);
+        sessionGR.update();
+
+        gs.log('SearchPulseSessionClassifier: ' + sessionGR.getValue('session_id') +
+               ' classified => outcome ' + outcome, 'SearchPulse');
+        return outcome;
+    },
+
+    /** classifyById(sessionId) - convenience method by session_id string */
+    classifyById: function(sessionId) {
+        var gr = new GlideRecord('x_searchpulse_session');
+        gr.addQuery('session_id', sessionId);
+        gr.setLimit(1);
+        gr.query();
+        if (!gr.next()) {
+            gs.logWarning('SearchPulseSessionClassifier: session not found: ' + sessionId, 'SearchPulse');
+            return 'B';
+        }
+        return this.classify(gr);
+    },
+
+    /**
+     * classifyPending()
+     * Bulk-classifies sessions still at outcome=B, older than 30 minutes.
+     * Called nightly by the Reputation Calculator scheduled job.
+     * @return count of sessions classified
+     */
+    classifyPending: function() {
+        var count  = 0;
+        var cutoff = new GlideDateTime();
+        cutoff.addSeconds(-1800);
+
+        var gr = new GlideRecord('x_searchpulse_session');
+        gr.addQuery('outcome', 'B');
+        gr.addQuery('timestamp', '<=', cutoff.getValue());
+        gr.query();
+
+        while (gr.next()) {
+            this.classify(gr);
+            count++;
+        }
+
+        gs.log('SearchPulseSessionClassifier: classified ' + count + ' pending sessions', 'SearchPulse');
+        return count;
+    },
+
+    _determineOutcome: function(s) {
+        var fb          = s.getValue('summary_feedback');
+        var clicked     = (s.getValue('result_clicked') === '1' || s.getValue('result_clicked') === true);
+        var cameBack    = (s.getValue('came_back')      === '1' || s.getValue('came_back')      === true);
+        var reformulated = (s.getValue('reformulated')  === '1' || s.getValue('reformulated')   === true);
+
+        /* Priority order: most disruptive first */
+        if (reformulated)                          { return 'E'; }
+        if (fb === 'down')                         { return 'F'; }
+        if (clicked && cameBack && !reformulated)  { return 'D'; }
+        if (clicked && !cameBack)                  { return 'C'; }
+        if (fb === 'up' && !clicked)               { return 'A'; }
+        return 'B';
+    }
+};]]></script>
+  <sys_class_name>sys_script_include</sys_class_name>
+  <sys_id>xsp0000000000000000000000si00002</sys_id>
+  <sys_name>SearchPulseSessionClassifier</sys_name>
+  <sys_package display_value="SearchPulse">x_searchpulse</sys_package>
+  <sys_scope display_value="SearchPulse">x_searchpulse</sys_scope>
+  <sys_update_name>sys_script_include_xsp0000000000000000000000si00002</sys_update_name>
+</sys_script_include>
+
+<!-- SCRIPT INCLUDE 3: SearchPulseConfidence -->
+<sys_script_include action="INSERT_OR_UPDATE">
+  <access>public</access>
+  <active>true</active>
+  <api_name>x_searchpulse.SearchPulseConfidence</api_name>
+  <client_callable>false</client_callable>
+  <description>Calculates AI Summary Confidence Score by averaging reputation of cited articles. High=score>=70 (green), Medium=45-69 (amber), Low=below 45 (red).</description>
+  <name>SearchPulseConfidence</name>
+  <script><![CDATA[var SearchPulseConfidence = Class.create();
+SearchPulseConfidence.prototype = {
+    type: 'SearchPulseConfidence',
+
+    /**
+     * calculateConfidence(articleList)
+     *
+     * Confidence score = average reputation_score of cited articles.
+     * Score bands:
+     *   >= 70  -> High   (green)
+     *   45-69  -> Medium (amber)
+     *   < 45   -> Low    (red)
+     *
+     * @param  articleList  Array of kb_knowledge sys_id strings
+     * @return { score, label, color, cssClass, description }
+     */
+    calculateConfidence: function(articleList) {
+        if (!articleList || articleList.length === 0) {
+            return this._result(50, 'No source articles provided - defaulting to Medium.');
+        }
+
+        var total = 0, count = 0;
+        for (var i = 0; i < articleList.length; i++) {
+            if (articleList[i]) {
+                total += this._getReputationScore(articleList[i]);
+                count++;
+            }
+        }
+
+        var avg = (count > 0) ? Math.round(total / count) : 50;
+        return this._result(avg, 'Averaged from ' + count + ' source article(s).');
+    },
+
+    /**
+     * calculateConfidenceForSession(sessionSysId)
+     * Reads x_searchpulse_summary_sources for the session, then delegates.
+     */
+    calculateConfidenceForSession: function(sessionSysId) {
+        if (!sessionSysId) { return this._result(50, 'No session provided.'); }
+
+        var ids = [];
+        var gr  = new GlideRecord('x_searchpulse_summary_sources');
+        gr.addQuery('session', sessionSysId);
+        gr.query();
+        while (gr.next()) {
+            var artId = gr.getValue('article');
+            if (artId) { ids.push(artId); }
+        }
+
+        return this.calculateConfidence(ids);
+    },
+
+    _getReputationScore: function(articleSysId) {
+        var gr = new GlideRecord('x_searchpulse_article_reputation');
+        gr.addQuery('article', articleSysId);
+        gr.setLimit(1);
+        gr.query();
+        if (gr.next()) {
+            var s = parseInt(gr.getValue('reputation_score'), 10);
+            return isNaN(s) ? 50 : s;
+        }
+        return 50; /* default for articles with no reputation record yet */
+    },
+
+    _result: function(score, description) {
+        var label, color, cssClass;
+        if      (score >= 70) { label = 'High';   color = 'green'; cssClass = 'sp-confidence-high';   }
+        else if (score >= 45) { label = 'Medium'; color = 'amber'; cssClass = 'sp-confidence-medium'; }
+        else                  { label = 'Low';    color = 'red';   cssClass = 'sp-confidence-low';    }
+        return { score: score, label: label, color: color, cssClass: cssClass, description: description };
+    }
+};]]></script>
+  <sys_class_name>sys_script_include</sys_class_name>
+  <sys_id>xsp0000000000000000000000si00003</sys_id>
+  <sys_name>SearchPulseConfidence</sys_name>
+  <sys_package display_value="SearchPulse">x_searchpulse</sys_package>
+  <sys_scope display_value="SearchPulse">x_searchpulse</sys_scope>
+  <sys_update_name>sys_script_include_xsp0000000000000000000000si00003</sys_update_name>
+</sys_script_include>
+
+<!-- SCRIPT INCLUDE 4: SearchPulseBadgeEngine -->
+<sys_script_include action="INSERT_OR_UPDATE">
+  <access>public</access>
+  <active>true</active>
+  <api_name>x_searchpulse.SearchPulseBadgeEngine</api_name>
+  <client_callable>false</client_callable>
+  <description>Assigns trust badges to KB articles. Frequently Helpful (rep>=75, green), Updated Recently (updated within 30d AND rep>=50, blue), May Be Outdated (rep less than 50 AND updated more than 180d ago, amber).</description>
+  <name>SearchPulseBadgeEngine</name>
+  <script><![CDATA[var SearchPulseBadgeEngine = Class.create();
+SearchPulseBadgeEngine.prototype = {
+    type: 'SearchPulseBadgeEngine',
+
+    BADGE_FREQUENTLY_HELPFUL: 'Frequently Helpful',
+    BADGE_UPDATED_RECENTLY:   'Updated Recently',
+    BADGE_MAY_BE_OUTDATED:    'May Be Outdated',
+
+    /**
+     * getBadge(articleSysId)
+     *
+     * Badge rules (per spec):
+     *   reputation >= 75                                     -> Frequently Helpful (green)
+     *   updated within 30 days AND reputation >= 50          -> Updated Recently   (blue)
+     *   reputation < 50 AND article updated > 180 days ago   -> May Be Outdated    (amber)
+     *   else                                                 -> no badge
+     *
+     * @param  articleSysId  sys_id of kb_knowledge record
+     * @return { badge, color, icon, show }
+     */
+    getBadge: function(articleSysId) {
+        if (!articleSysId) { return this._noBadge(); }
+
+        var score     = this._getScore(articleSysId);
+        var daysSince = this._daysSinceUpdate(articleSysId);
+
+        if (score >= 75) {
+            return this._makeBadge(this.BADGE_FREQUENTLY_HELPFUL, 'green', 'fa-check-circle');
+        }
+        if (daysSince !== null && daysSince <= 30 && score >= 50) {
+            return this._makeBadge(this.BADGE_UPDATED_RECENTLY, 'blue', 'fa-refresh');
+        }
+        if (score < 50 && daysSince !== null && daysSince > 180) {
+            return this._makeBadge(this.BADGE_MAY_BE_OUTDATED, 'amber', 'fa-exclamation-triangle');
+        }
+        return this._noBadge();
+    },
+
+    /**
+     * getBadgesForList(sysIds)
+     * Batch variant - returns { sysId: badgeObject } map.
+     * Single DB queries per table for efficiency.
+     */
+    getBadgesForList: function(sysIds) {
+        if (!sysIds || sysIds.length === 0) { return {}; }
+
+        var repMap    = this._bulkReputation(sysIds);
+        var updateMap = this._bulkUpdateDays(sysIds);
+        var result    = {};
+
+        for (var i = 0; i < sysIds.length; i++) {
+            var sid   = sysIds[i];
+            var score = (repMap[sid] !== undefined) ? repMap[sid] : 50;
+            var days  = (updateMap[sid] !== undefined) ? updateMap[sid] : null;
+
+            if (score >= 75) {
+                result[sid] = this._makeBadge(this.BADGE_FREQUENTLY_HELPFUL, 'green', 'fa-check-circle');
+            } else if (days !== null && days <= 30 && score >= 50) {
+                result[sid] = this._makeBadge(this.BADGE_UPDATED_RECENTLY, 'blue', 'fa-refresh');
+            } else if (score < 50 && days !== null && days > 180) {
+                result[sid] = this._makeBadge(this.BADGE_MAY_BE_OUTDATED, 'amber', 'fa-exclamation-triangle');
+            } else {
+                result[sid] = this._noBadge();
+            }
+        }
+        return result;
+    },
+
+    _getScore: function(articleSysId) {
+        var gr = new GlideRecord('x_searchpulse_article_reputation');
+        gr.addQuery('article', articleSysId);
+        gr.setLimit(1);
+        gr.query();
+        if (gr.next()) {
+            var s = parseInt(gr.getValue('reputation_score'), 10);
+            return isNaN(s) ? 50 : s;
+        }
+        return 50;
+    },
+
+    _daysSinceUpdate: function(articleSysId) {
+        var gr = new GlideRecord('kb_knowledge');
+        if (!gr.get(articleSysId)) { return null; }
+        var upd = gr.getValue('sys_updated_on');
+        if (!upd) { return null; }
+        var diff = GlideDateTime.subtract(new GlideDateTime(upd), new GlideDateTime());
+        return Math.abs(Math.floor(diff.getDayPart()));
+    },
+
+    _bulkReputation: function(sysIds) {
+        var map = {};
+        var gr  = new GlideRecord('x_searchpulse_article_reputation');
+        gr.addQuery('article', 'IN', sysIds.join(','));
+        gr.query();
+        while (gr.next()) {
+            var s = parseInt(gr.getValue('reputation_score'), 10);
+            map[gr.getValue('article')] = isNaN(s) ? 50 : s;
+        }
+        return map;
+    },
+
+    _bulkUpdateDays: function(sysIds) {
+        var map = {}, now = new GlideDateTime();
+        var gr  = new GlideRecord('kb_knowledge');
+        gr.addQuery('sys_id', 'IN', sysIds.join(','));
+        gr.query();
+        while (gr.next()) {
+            var upd = gr.getValue('sys_updated_on');
+            if (upd) {
+                var diff = GlideDateTime.subtract(new GlideDateTime(upd), now);
+                map[gr.getUniqueValue()] = Math.abs(Math.floor(diff.getDayPart()));
+            } else {
+                map[gr.getUniqueValue()] = null;
+            }
+        }
+        return map;
+    },
+
+    _makeBadge: function(badge, color, icon) {
+        return { badge: badge, color: color, icon: icon, show: true };
+    },
+
+    _noBadge: function() {
+        return { badge: '', color: null, icon: null, show: false };
+    }
+};]]></script>
+  <sys_class_name>sys_script_include</sys_class_name>
+  <sys_id>xsp0000000000000000000000si00004</sys_id>
+  <sys_name>SearchPulseBadgeEngine</sys_name>
+  <sys_package display_value="SearchPulse">x_searchpulse</sys_package>
+  <sys_scope display_value="SearchPulse">x_searchpulse</sys_scope>
+  <sys_update_name>sys_script_include_xsp0000000000000000000000si00004</sys_update_name>
+</sys_script_include>
+
+
+<!-- SCHEDULED JOB: SearchPulse Reputation Calculator (Daily at 02:00) -->
+<sys_trigger action="INSERT_OR_UPDATE">
+  <action>0</action>
+  <active>true</active>
+  <application display_value="SearchPulse">x_searchpulse</application>
+  <name>SearchPulse Reputation Calculator</name>
+  <next_action>2026-03-10 02:00:00</next_action>
+  <order>100</order>
+  <overflow_action>0</overflow_action>
+  <overflow_time>7200</overflow_time>
+  <priority>50</priority>
+  <queue>default</queue>
+  <run_as display_value="System Administrator">6816f79cc0a8016401c5a33be04be441</run_as>
+  <run_dayofmonth>0</run_dayofmonth>
+  <run_dayofweek>0</run_dayofweek>
+  <run_time>02:00:00</run_time>
+  <run_type>daily</run_type>
+  <script><![CDATA[/**
+ * SearchPulse Reputation Calculator
+ * Scheduled: Daily at 02:00
+ *
+ * Algorithm:
+ *  1. Classify any unclassified sessions (outcome=B, older than 30 min).
+ *  2. Loop through all distinct KB articles referenced via clicked_article.
+ *  3. For each article, sum outcome weights from the last 24h of sessions:
+ *       Outcome A  +3   (Summary satisfied)
+ *       Outcome C  +1   (Drilled down success)
+ *       Outcome D  -5   (Result failed)
+ *       Outcome E  -10  (Full search failure)
+ *       Outcome F  -15  (Summary rejected)
+ *       Outcome B   0   (Ambiguous - no change)
+ *  4. new_score = clamp(current_score + delta, 0, 100)
+ *  5. Upsert x_searchpulse_article_reputation record.
+ *
+ * NOTE: Score starts at 50 for any article with no reputation record yet.
+ */
+
+gs.log('SearchPulse Reputation Calculator: START', 'SearchPulse');
+var JOB_START = new GlideDateTime();
+var WEIGHTS   = { 'A': 3, 'B': 0, 'C': 1, 'D': -5, 'E': -10, 'F': -15 };
+
+/* Step 1: Classify pending sessions */
+try {
+    var classifier    = new x_searchpulse.SearchPulseSessionClassifier();
+    var preClassified = classifier.classifyPending();
+    gs.log('SearchPulse Reputation Calculator: pre-classified ' + preClassified + ' sessions', 'SearchPulse');
+} catch (ce) {
+    gs.logError('SearchPulse Reputation Calculator: session classification error - ' + ce.message, 'SearchPulse');
+}
+
+/* Step 2: Collect distinct articles */
+var articleIds = _getDistinctArticles();
+gs.log('SearchPulse Reputation Calculator: ' + articleIds.length + ' articles to score', 'SearchPulse');
+
+/* Step 3-5: Score each article */
+var scored = 0, errors = 0;
+for (var i = 0; i < articleIds.length; i++) {
+    try {
+        if (_scoreArticle(articleIds[i])) { scored++; }
+    } catch (ae) {
+        errors++;
+        gs.logError('SearchPulse Reputation Calculator: error on article=' + articleIds[i] + ' - ' + ae.message, 'SearchPulse');
+    }
+}
+
+var elapsed = Math.abs(GlideDateTime.subtract(JOB_START, new GlideDateTime()).getNumericValue()) / 1000;
+gs.log('SearchPulse Reputation Calculator: DONE scored=' + scored + ' errors=' + errors + ' elapsed=' + elapsed + 's', 'SearchPulse');
+
+/* ---- helper functions ---- */
+
+function _getDistinctArticles() {
+    var ids  = [], seen = {};
+    var gr   = new GlideRecord('x_searchpulse_session');
+    gr.addNotNullQuery('clicked_article');
+    gr.query();
+    while (gr.next()) {
+        var id = gr.getValue('clicked_article');
+        if (id && !seen[id]) { seen[id] = true; ids.push(id); }
+    }
+    return ids;
+}
+
+function _scoreArticle(articleSysId) {
+    /* Fetch sessions for this article from the past 24 hours */
+    var cutoff = new GlideDateTime();
+    cutoff.addDays(-1);
+
+    var gr = new GlideRecord('x_searchpulse_session');
+    gr.addQuery('clicked_article', articleSysId);
+    gr.addQuery('timestamp', '>=', cutoff.getValue());
+    gr.query();
+
+    var delta = 0, pos = 0, neg = 0, total = 0;
+    while (gr.next()) {
+        var oc = gr.getValue('outcome') || 'B';
+        var w  = WEIGHTS.hasOwnProperty(oc) ? WEIGHTS[oc] : 0;
+        delta += w;
+        if (w > 0) { pos++; } else if (w < 0) { neg++; }
+        total++;
+    }
+
+    if (total === 0) { return false; }
+
+    /* Upsert reputation record */
+    var repGR = new GlideRecord('x_searchpulse_article_reputation');
+    repGR.addQuery('article', articleSysId);
+    repGR.setLimit(1);
+    repGR.query();
+
+    var isNew    = !repGR.next();
+    var base     = isNew ? 50 : (parseInt(repGR.getValue('reputation_score'), 10) || 50);
+    var newScore = Math.min(100, Math.max(0, base + delta));
+
+    if (isNew) {
+        repGR = new GlideRecord('x_searchpulse_article_reputation');
+        repGR.initialize();
+        repGR.setValue('article',          articleSysId);
+        repGR.setValue('positive_signals', pos);
+        repGR.setValue('negative_signals', neg);
+        repGR.setValue('sessions_count',   total);
+    } else {
+        repGR.setValue('positive_signals', (parseInt(repGR.getValue('positive_signals'), 10) || 0) + pos);
+        repGR.setValue('negative_signals', (parseInt(repGR.getValue('negative_signals'), 10) || 0) + neg);
+        repGR.setValue('sessions_count',   (parseInt(repGR.getValue('sessions_count'),   10) || 0) + total);
+    }
+
+    repGR.setValue('reputation_score', newScore);
+    repGR.setValue('last_calculated',  new GlideDateTime().getValue());
+
+    isNew ? repGR.insert() : repGR.update();
+
+    gs.debug('SearchPulse: article=' + articleSysId + ' base=' + base + ' delta=' + delta + ' new=' + newScore, 'SearchPulse');
+    return true;
+}]]></script>
+  <state>0</state>
+  <sys_class_name>sys_trigger</sys_class_name>
+  <sys_id>xsp0000000000000000000000job0001</sys_id>
+  <sys_name>SearchPulse Reputation Calculator</sys_name>
+  <sys_package display_value="SearchPulse">x_searchpulse</sys_package>
+  <sys_scope display_value="SearchPulse">x_searchpulse</sys_scope>
+  <sys_update_name>sys_trigger_xsp0000000000000000000000job0001</sys_update_name>
+  <time_zone/>
+</sys_trigger>
+
+<!-- UI SCRIPT: SearchPulseTracker -->
+<sys_ui_script action="INSERT_OR_UPDATE">
+  <active>true</active>
+  <description>Captures user search signals from the Service Portal / AI Search page. Uses GlideAjax to call SearchPulseSignalAPI. Public API: summaryFeedback(type), scrollDetection(), resultClicked(article), detectReformulation().</description>
+  <global>false</global>
+  <name>SearchPulseTracker</name>
+  <script><![CDATA[/**
+ * SearchPulseTracker - UI Script (x_searchpulse scope)
+ *
+ * Attach to any Service Portal page that shows search results.
+ * Usage from a widget client script or AngularJS controller:
+ *
+ *   SearchPulseTracker.init('expense report');         // on search submit
+ *   SearchPulseTracker.summaryFeedback('up');           // thumbs up on AI summary
+ *   SearchPulseTracker.summaryFeedback('down');         // thumbs down
+ *   SearchPulseTracker.resultClicked('kb_article_id'); // on result link click
+ *   SearchPulseTracker.detectReformulation();           // when user changes query
+ */
+var SearchPulseTracker = (function () {
+    'use strict';
+
+    var _sessionId  = null;
+    var _lastQuery  = '';
+    var _active     = false;
+    var _scrollDone = false;
+
+    /* ---- public API ---- */
+
+    /**
+     * init(query)
+     * Must be called on each search submission.
+     * Creates a new session via GlideAjax and wires scroll / unload listeners.
+     */
+    function init(query) {
+        if (!query || query.trim().length < 2) { return; }
+
+        /* If same session is active and query changed, it is a reformulation */
+        if (_active && query !== _lastQuery) { detectReformulation(); }
+
+        _sessionId  = _generateId();
+        _lastQuery  = query;
+        _active     = true;
+        _scrollDone = false;
+
+        /* Create server-side session record */
+        _ajax('createSession', {
+            sysparm_session_id: _sessionId,
+            sysparm_query:      query,
+            sysparm_user:       _getCurrentUserSysId()
+        }, function () {});
+
+        /* Persist for cross-page return detection */
+        try {
+            sessionStorage.setItem('sp_xsp_sid',   _sessionId);
+            sessionStorage.setItem('sp_xsp_query', query);
+        } catch (e) {}
+
+        _attachScrollDetection();
+        window.addEventListener('beforeunload', _onPageUnload);
+    }
+
+    /**
+     * summaryFeedback(type)
+     * type: 'up' or 'down'
+     * Call when user clicks thumbs up / down on the AI summary.
+     */
+    function summaryFeedback(type) {
+        if (!_sessionId) { return; }
+        _sendSignal((type === 'up') ? 'summary_up' : 'summary_down', null);
+    }
+
+    /**
+     * scrollDetection()
+     * Fire when the results list scrolls into the viewport.
+     * Auto-wired via IntersectionObserver; also exposed for manual trigger.
+     */
+    function scrollDetection() {
+        if (_scrollDone || !_sessionId) { return; }
+        _scrollDone = true;
+        _sendSignal('scroll', null);
+    }
+
+    /**
+     * resultClicked(articleSysId)
+     * Call on click of any search result link.
+     * articleSysId - sys_id of the kb_knowledge article.
+     */
+    function resultClicked(articleSysId) {
+        if (!_sessionId) { return; }
+        _sendSignal('click', articleSysId || null);
+        /* Mark return detection flag for when user navigates back */
+        try {
+            sessionStorage.setItem('sp_xsp_return', '1');
+            sessionStorage.setItem('sp_xsp_sid',    _sessionId);
+        } catch (e) {}
+    }
+
+    /**
+     * detectReformulation()
+     * Call when the user changes the search query mid-session.
+     */
+    function detectReformulation() {
+        if (!_sessionId) { return; }
+        _sendSignal('reformulate', null);
+    }
+
+    /* ---- private helpers ---- */
+
+    function _attachScrollDetection() {
+        var el = document.getElementById('sp-search-results');
+
+        if (el && window.IntersectionObserver) {
+            var obs = new IntersectionObserver(function (entries) {
+                entries.forEach(function (entry) {
+                    if (entry.isIntersecting) { scrollDetection(); obs.disconnect(); }
+                });
+            }, { threshold: 0.1 });
+            obs.observe(el);
+            return;
+        }
+
+        /* Fallback for browsers without IntersectionObserver */
+        window.addEventListener('scroll', function _scrollFallback() {
+            if (!_sessionId || _scrollDone) {
+                window.removeEventListener('scroll', _scrollFallback);
+                return;
+            }
+            var el2 = document.getElementById('sp-search-results');
+            if (el2 && el2.getBoundingClientRect().top < window.innerHeight) {
+                window.removeEventListener('scroll', _scrollFallback);
+                scrollDetection();
+            }
+        }, { passive: true });
+    }
+
+    function _onPageUnload() {
+        try {
+            var returnFlag = sessionStorage.getItem('sp_xsp_return');
+            if (returnFlag === '1') {
+                var prevSid = sessionStorage.getItem('sp_xsp_sid');
+                if (prevSid) { _sessionId = prevSid; _sendSignalSync('return'); }
+                sessionStorage.removeItem('sp_xsp_return');
+            }
+        } catch (e) {}
+    }
+
+    function _sendSignal(signal, article) {
+        var params = { sysparm_session: _sessionId, sysparm_signal: signal };
+        if (article) { params.sysparm_article = article; }
+        _ajax('captureSignal', params, function () {});
+    }
+
+    /* sendBeacon for beforeunload where async XHR may be cancelled */
+    function _sendSignalSync(signal) {
+        try {
+            if (navigator.sendBeacon) {
+                var payload = JSON.stringify({ session: _sessionId, signal: signal });
+                navigator.sendBeacon('/api/x_searchpulse/signal', new Blob([payload], { type: 'application/json' }));
+            }
+        } catch (e) { /* best effort */ }
+    }
+
+    function _ajax(method, params, callback) {
+        var ga = new GlideAjax('x_searchpulse.SearchPulseSignalAPI');
+        ga.addParam('sysparm_name', method);
+        for (var key in params) {
+            if (params.hasOwnProperty(key)) { ga.addParam(key, params[key]); }
+        }
+        ga.getXML(callback || function () {});
+    }
+
+    function _generateId() {
+        var arr = new Uint8Array(16);
+        if (window.crypto && window.crypto.getRandomValues) {
+            window.crypto.getRandomValues(arr);
+        } else {
+            for (var i = 0; i < 16; i++) { arr[i] = Math.floor(Math.random() * 256); }
+        }
+        return Array.prototype.map.call(arr, function (b) {
+            return ('00' + b.toString(16)).slice(-2);
+        }).join('');
+    }
+
+    function _getCurrentUserSysId() {
+        return (window.NOW && window.NOW.user && window.NOW.user.sys_id) ? window.NOW.user.sys_id : null;
+    }
+
+    /* On page load, check if the user has returned from an article */
+    (function _checkReturnOnLoad() {
+        try {
+            if (sessionStorage.getItem('sp_xsp_return') === '1') {
+                var prevSid = sessionStorage.getItem('sp_xsp_sid');
+                if (prevSid) {
+                    _sessionId = prevSid;
+                    _sendSignal('return', null);
+                }
+                sessionStorage.removeItem('sp_xsp_return');
+            }
+        } catch (e) {}
+    }());
+
+    /* Expose public surface */
+    return {
+        init:                init,
+        summaryFeedback:     summaryFeedback,
+        scrollDetection:     scrollDetection,
+        resultClicked:       resultClicked,
+        detectReformulation: detectReformulation,
+        getSessionId:        function () { return _sessionId; }
+    };
+}());]]></script>
+  <sys_class_name>sys_ui_script</sys_class_name>
+  <sys_id>xsp0000000000000000000000uis0001</sys_id>
+  <sys_name>SearchPulseTracker</sys_name>
+  <sys_package display_value="SearchPulse">x_searchpulse</sys_package>
+  <sys_scope display_value="SearchPulse">x_searchpulse</sys_scope>
+  <sys_update_name>sys_ui_script_xsp0000000000000000000000uis0001</sys_update_name>
+</sys_ui_script>
+
+
+<!-- SP WIDGET 1: SearchPulse Confidence Indicator -->
+<sp_widget action="INSERT_OR_UPDATE">
+  <category>search</category>
+  <client_script><![CDATA[function SearchPulseConfidenceCtrl($scope) {
+    'use strict';
+    var c  = this;
+    c.conf = $scope.data.confidence || { score: 50, label: 'Medium', color: 'amber' };
+    c.show = !!$scope.data.show;
+
+    c.getIcon = function () {
+        var map = { High: 'fa-check-circle', Medium: 'fa-exclamation-circle', Low: 'fa-times-circle' };
+        return map[c.conf.label] || 'fa-circle';
+    };
+    c.barWidth   = function () { return (c.conf.score || 0) + '%'; };
+    c.colorClass = function () {
+        var map = { green: 'sp-conf-high', amber: 'sp-conf-medium', red: 'sp-conf-low' };
+        return map[c.conf.color] || 'sp-conf-medium';
+    };
+}]]></client_script>
+  <css><![CDATA[.sp-confidence-widget{font-family:inherit;padding:14px 18px;border-radius:10px;max-width:480px}
+.sp-confidence-widget .sp-conf-header{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.sp-confidence-widget .sp-conf-label{font-size:22px;font-weight:800;line-height:1}
+.sp-confidence-widget .sp-conf-bar-bg{background:rgba(0,0,0,.1);border-radius:4px;height:8px;overflow:hidden;margin:8px 0 5px}
+.sp-confidence-widget .sp-conf-bar-fill{height:100%;border-radius:4px;transition:width .5s ease}
+.sp-confidence-widget .sp-conf-desc{font-size:11px;opacity:.75}
+.sp-conf-high{background:#e8f5e9}.sp-conf-high .sp-conf-label,.sp-conf-high .sp-conf-header{color:#2e7d32}.sp-conf-high .sp-conf-bar-fill{background:#43a047}
+.sp-conf-medium{background:#fff8e1}.sp-conf-medium .sp-conf-label,.sp-conf-medium .sp-conf-header{color:#e65100}.sp-conf-medium .sp-conf-bar-fill{background:#ef6c00}
+.sp-conf-low{background:#ffebee}.sp-conf-low .sp-conf-label,.sp-conf-low .sp-conf-header{color:#c62828}.sp-conf-low .sp-conf-bar-fill{background:#e53935}]]></css>
+  <description>AI Summary Confidence Indicator widget. Shows High (green, score 70-100), Medium (amber, 45-69), or Low (red, 0-44) confidence based on average article reputation of cited sources.</description>
+  <id>searchpulse-confidence-indicator</id>
+  <name>SearchPulse Confidence Indicator</name>
+  <option_schema>[{"name":"session_sys_id","label":"Session sys_id","type":"string","default_value":""},{"name":"article_sys_ids","label":"Comma-separated article sys_ids","type":"string","default_value":""}]</option_schema>
+  <public>true</public>
+  <script><![CDATA[(function () {
+    'use strict';
+    data.show       = false;
+    data.confidence = { score: 50, label: 'Medium', color: 'amber' };
+
+    var sessionSysId  = (options && options.session_sys_id)  || '';
+    var articleSysIds = (options && options.article_sys_ids) || '';
+
+    var articleList = [];
+
+    if (sessionSysId) {
+        var src = new GlideRecord('x_searchpulse_summary_sources');
+        src.addQuery('session', sessionSysId);
+        src.query();
+        while (src.next()) { articleList.push(src.getValue('article')); }
+    } else if (articleSysIds) {
+        articleList = articleSysIds.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+    }
+
+    try {
+        var engine      = new x_searchpulse.SearchPulseConfidence();
+        data.confidence = engine.calculateConfidence(articleList);
+        data.show       = true;
+    } catch (e) {
+        gs.logError('SearchPulse Confidence Indicator widget: ' + e.message, 'SearchPulse');
+    }
+}());]]></script>
+  <servicenow>false</servicenow>
+  <sys_class_name>sp_widget</sys_class_name>
+  <sys_id>xsp0000000000000000000000wid0001</sys_id>
+  <sys_name>SearchPulse Confidence Indicator</sys_name>
+  <sys_package display_value="SearchPulse">x_searchpulse</sys_package>
+  <sys_scope display_value="SearchPulse">x_searchpulse</sys_scope>
+  <sys_update_name>sp_widget_xsp0000000000000000000000wid0001</sys_update_name>
+  <template><![CDATA[<div class="sp-confidence-widget" ng-controller="SearchPulseConfidenceCtrl" ng-class="c.colorClass()" ng-if="c.show">
+  <div class="sp-conf-header">
+    <i class="fa" ng-class="c.getIcon()"></i> AI Summary Confidence
+  </div>
+  <div class="sp-conf-label">{{c.conf.label}} Confidence</div>
+  <div class="sp-conf-bar-bg">
+    <div class="sp-conf-bar-fill" ng-style="{'width': c.barWidth()}"></div>
+  </div>
+  <div class="sp-conf-desc">Score: {{c.conf.score}} / 100 &mdash; {{c.conf.description}}</div>
+</div>]]></template>
+</sp_widget>
+
+<!-- SP WIDGET 2: SearchPulse Trust Badge Display (search results + badges) -->
+<sp_widget action="INSERT_OR_UPDATE">
+  <category>search</category>
+  <client_script><![CDATA[function SearchPulseBadgeDisplayCtrl($scope, $sce) {
+    'use strict';
+    var c          = this;
+    c.results      = $scope.data.results   || [];
+    c.confidence   = $scope.data.confidence || { label: 'Medium', color: 'amber', score: 50 };
+    c.query        = $scope.data.query     || '';
+    c.feedbackDone = false;
+    c.searched     = !!$scope.data.searched;
+
+    c.colorClass = function (color) {
+        return { green: 'sp-badge-green', blue: 'sp-badge-blue', amber: 'sp-badge-amber' }[color] || '';
+    };
+
+    c.confClass = function () {
+        return { green: 'sp-conf-badge-high', amber: 'sp-conf-badge-medium', red: 'sp-conf-badge-low' }[c.confidence.color] || '';
+    };
+
+    c.onResultClick = function (result) {
+        if (window.SearchPulseTracker) { SearchPulseTracker.resultClicked(result.sys_id); }
+    };
+
+    c.summaryFeedback = function (type) {
+        if (c.feedbackDone) { return; }
+        c.feedbackDone = type;
+        if (window.SearchPulseTracker) { SearchPulseTracker.summaryFeedback(type); }
+    };
+
+    c.safeSnippet = function (html) { return $sce.trustAsHtml(html || ''); };
+}]]></client_script>
+  <css><![CDATA[.sp-badge-display{font-family:inherit;max-width:900px;margin:0 auto}
+.sp-badge-display .sp-summary-panel{background:linear-gradient(135deg,#f0f7ff,#e8f4fd);border:1px solid #b3d4f5;border-radius:10px;padding:16px 20px;margin-bottom:18px}
+.sp-badge-display .sp-summary-title{font-size:14px;font-weight:700;color:#0052cc;display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.sp-badge-display .sp-conf-badge-high{background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7}
+.sp-badge-display .sp-conf-badge-medium{background:#fff8e1;color:#e65100;border:1px solid #ffcc80}
+.sp-badge-display .sp-conf-badge-low{background:#ffebee;color:#c62828;border:1px solid #ef9a9a}
+.sp-badge-display .sp-conf-badge-high,.sp-badge-display .sp-conf-badge-medium,.sp-badge-display .sp-conf-badge-low{display:inline-block;font-size:11px;font-weight:700;padding:2px 10px;border-radius:12px;margin-left:8px}
+.sp-badge-display .sp-thumb-btn{background:transparent;border:1px solid #b3d4f5;color:#0052cc;border-radius:50%;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;margin-left:4px;padding:0}
+.sp-badge-display .sp-thumb-btn.active{background:#0052cc;color:#fff}
+.sp-badge-display .sp-result-item{padding:14px 0;border-bottom:1px solid #eef0f4}
+.sp-badge-display .sp-result-header{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:5px}
+.sp-badge-display .sp-result-title{font-size:16px;font-weight:600;color:#0052cc;text-decoration:none}
+.sp-badge-display .sp-result-title:hover{text-decoration:underline}
+.sp-badge-display .sp-snippet{font-size:14px;color:#444;line-height:1.5;margin:0 0 6px}
+.sp-badge-display .sp-result-meta{font-size:12px;color:#888}
+.sp-badge-display .sp-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:3px 10px;border-radius:12px;text-transform:uppercase;letter-spacing:.03em;white-space:nowrap}
+.sp-badge-display .sp-badge-green{background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7}
+.sp-badge-display .sp-badge-blue{background:#e3f2fd;color:#1565c0;border:1px solid #90caf9}
+.sp-badge-display .sp-badge-amber{background:#fff8e1;color:#bf360c;border:1px solid #ffcc80}
+.sp-badge-display .sp-empty{text-align:center;padding:48px 20px;color:#888}]]></css>
+  <description>Full search results widget with AI Summary panel, Confidence badge, Trust Badges per article (Frequently Helpful, Updated Recently, May Be Outdated), and thumbs feedback. Integrates with SearchPulseTracker UI Script.</description>
+  <id>searchpulse-trust-badge-display</id>
+  <name>SearchPulse Trust Badge Display</name>
+  <option_schema>[{"name":"search_placeholder","label":"Placeholder text","type":"string","default_value":"Search for answers..."},{"name":"max_results","label":"Max results","type":"integer","default_value":10},{"name":"show_badges","label":"Show Trust Badges","type":"boolean","default_value":true},{"name":"show_feedback","label":"Show AI Summary feedback thumbs","type":"boolean","default_value":true}]</option_schema>
+  <public>true</public>
+  <script><![CDATA[(function () {
+    'use strict';
+
+    var query      = (input && input.query) ? input.query.trim() : '';
+    var maxResults = (options && options.max_results) ? parseInt(options.max_results, 10) : 10;
+
+    data.results    = [];
+    data.confidence = { score: 50, label: 'Medium', color: 'amber' };
+    data.query      = query;
+    data.searched   = !!query;
+
+    if (!query || query.length < 2) { return; }
+
+    try {
+        /* Search KB articles */
+        var rawResults  = _searchKB(query, maxResults);
+        if (rawResults.length === 0) { data.results = []; return; }
+
+        /* Attach trust badges */
+        var sysIds      = rawResults.map(function (r) { return r.sys_id; });
+        var badgeEngine = new x_searchpulse.SearchPulseBadgeEngine();
+        var badgeMap    = badgeEngine.getBadgesForList(sysIds);
+
+        for (var i = 0; i < rawResults.length; i++) {
+            rawResults[i].badge = badgeMap[rawResults[i].sys_id] || { show: false };
+        }
+
+        /* Calculate AI summary confidence */
+        var confEngine  = new x_searchpulse.SearchPulseConfidence();
+        data.confidence = confEngine.calculateConfidence(sysIds);
+        data.results    = rawResults;
+
+    } catch (e) {
+        gs.logError('SearchPulse Trust Badge Display: ' + e.message, 'SearchPulse');
+        data.results = [];
+    }
+
+    function _searchKB(q, limit) {
+        var results = [];
+        var gr      = new GlideRecord('kb_knowledge');
+        gr.addActiveQuery();
+        gr.addQuery('workflow_state', 'published');
+        var qc = gr.addQuery('short_description', 'CONTAINS', q);
+        qc.addOrCondition('text', 'CONTAINS', q);
+        gr.setLimit(limit);
+        gr.orderByDesc('sys_updated_on');
+        gr.query();
+
+        while (gr.next()) {
+            results.push({
+                sys_id:   gr.getUniqueValue(),
+                title:    gr.getDisplayValue('short_description'),
+                snippet:  _snippet(gr.getValue('text'), q),
+                url:      '/kb_view.do?sysparm_article=' + gr.getValue('number'),
+                category: gr.getDisplayValue('kb_category'),
+                updated:  _relDate(gr.getValue('sys_updated_on'))
+            });
+        }
+        return results;
+    }
+
+    function _snippet(text, q) {
+        if (!text) { return ''; }
+        var plain = text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+        var idx   = plain.toLowerCase().indexOf(q.toLowerCase());
+        if (idx === -1) { return plain.substring(0, 160) + (plain.length > 160 ? '...' : ''); }
+        var s = Math.max(0, idx - 60), e = Math.min(plain.length, idx + q.length + 100);
+        return (s > 0 ? '...' : '') + plain.substring(s, e) + (e < plain.length ? '...' : '');
+    }
+
+    function _relDate(v) {
+        if (!v) { return ''; }
+        var d = Math.abs(Math.floor(GlideDateTime.subtract(new GlideDateTime(v), new GlideDateTime()).getDayPart()));
+        if (d === 0) { return 'today'; }
+        if (d === 1) { return 'yesterday'; }
+        if (d <= 30)  { return d + ' days ago'; }
+        if (d <= 365) { return Math.floor(d / 30) + ' months ago'; }
+        return Math.floor(d / 365) + ' years ago';
+    }
+}());]]></script>
+  <servicenow>false</servicenow>
+  <sys_class_name>sp_widget</sys_class_name>
+  <sys_id>xsp0000000000000000000000wid0002</sys_id>
+  <sys_name>SearchPulse Trust Badge Display</sys_name>
+  <sys_package display_value="SearchPulse">x_searchpulse</sys_package>
+  <sys_scope display_value="SearchPulse">x_searchpulse</sys_scope>
+  <sys_update_name>sp_widget_xsp0000000000000000000000wid0002</sys_update_name>
+  <template><![CDATA[<div class="sp-badge-display" ng-controller="SearchPulseBadgeDisplayCtrl">
+
+  <!-- AI Summary Panel -->
+  <div class="sp-summary-panel" ng-if="data.results.length > 0">
+    <div class="sp-summary-title">
+      <i class="fa fa-magic"></i> AI Summary
+      <span class="sp-badge" ng-class="c.confClass()">
+        <i class="fa fa-shield"></i> {{c.confidence.label}} Confidence ({{c.confidence.score}}/100)
+      </span>
+    </div>
+    <div style="font-size:14px;color:#333">
+      Based on your search for <strong>"{{c.query}}"</strong>,
+      {{c.results.length}} article(s) were found.
+      AI analysis confidence is <strong>{{c.confidence.label}}</strong>
+      based on community trust signals.
+    </div>
+    <!-- Summary feedback thumbs -->
+    <div style="margin-top:10px;padding-top:10px;border-top:1px solid #c9dff5" ng-if="options.show_feedback !== false">
+      <span style="font-size:12px;color:#555">Was this summary helpful?</span>
+      <button class="sp-thumb-btn" ng-class="{'active': c.feedbackDone === 'up'}"
+              ng-click="c.summaryFeedback('up')" ng-disabled="c.feedbackDone">
+        <i class="fa fa-thumbs-up"></i>
+      </button>
+      <button class="sp-thumb-btn" ng-class="{'active': c.feedbackDone === 'down'}"
+              ng-click="c.summaryFeedback('down')" ng-disabled="c.feedbackDone">
+        <i class="fa fa-thumbs-down"></i>
+      </button>
+      <span style="color:#2e7d32;font-size:12px;font-style:italic" ng-if="c.feedbackDone"> Thanks for your feedback!</span>
+    </div>
+  </div>
+
+  <!-- Search Result List with Trust Badges -->
+  <div id="sp-search-results" ng-if="data.results.length > 0">
+    <div style="font-size:13px;color:#777;margin-bottom:10px">
+      {{data.results.length}} result(s) found
+    </div>
+    <ul class="list-unstyled">
+      <li class="sp-result-item" ng-repeat="result in data.results track by result.sys_id"
+          ng-click="c.onResultClick(result)">
+        <div class="sp-result-header">
+          <a class="sp-result-title" ng-href="{{result.url}}" ng-bind="result.title"
+             ng-click="$event.stopPropagation(); c.onResultClick(result)"></a>
+          <!-- Trust Badge -->
+          <span class="sp-badge" ng-class="c.colorClass(result.badge.color)"
+                ng-if="result.badge && result.badge.show && options.show_badges !== false">
+            <i class="fa" ng-class="result.badge.icon"></i> {{result.badge.badge}}
+          </span>
+        </div>
+        <p class="sp-snippet" ng-bind-html="c.safeSnippet(result.snippet)" ng-if="result.snippet"></p>
+        <div class="sp-result-meta">
+          <span ng-if="result.category"><i class="fa fa-folder-o"></i> {{result.category}} &nbsp;</span>
+          <span ng-if="result.updated"><i class="fa fa-clock-o"></i> {{result.updated}}</span>
+        </div>
+      </li>
+    </ul>
+  </div>
+
+  <!-- Empty state -->
+  <div class="sp-empty" ng-if="c.searched && data.results.length === 0">
+    <i class="fa fa-search fa-3x" style="color:#ccc;display:block;margin-bottom:12px"></i>
+    <p>No results found for <strong>"{{c.query}}"</strong></p>
+  </div>
+
+</div>]]></template>
+</sp_widget>
+
+
+<!-- FLOW: SearchPulse Content Quality Monitor -->
+<!-- Trigger: When reputation_score < 40 on x_searchpulse_article_reputation -->
+<sys_hub_flow action="INSERT_OR_UPDATE">
+  <access>public</access>
+  <active>true</active>
+  <description>Triggered when an article reputation score drops below 40. Creates a task for the Knowledge Owner, notifies the content owner, and logs a suggestion to update the article.</description>
+  <internal_name>x_searchpulse.searchpulse_content_quality_monitor</internal_name>
+  <label>SearchPulse Content Quality Monitor</label>
+  <language>en</language>
+  <name>SearchPulse Content Quality Monitor</name>
+  <remote_trigger_table>x_searchpulse_article_reputation</remote_trigger_table>
+  <run_as display_value="System Administrator">6816f79cc0a8016401c5a33be04be441</run_as>
+  <scope display_value="SearchPulse">x_searchpulse</scope>
+  <status>published</status>
+  <sys_class_name>sys_hub_flow</sys_class_name>
+  <sys_id>xsp0000000000000000000000flo0001</sys_id>
+  <sys_name>SearchPulse Content Quality Monitor</sys_name>
+  <sys_package display_value="SearchPulse">x_searchpulse</sys_package>
+  <sys_scope display_value="SearchPulse">x_searchpulse</sys_scope>
+  <sys_update_name>sys_hub_flow_xsp0000000000000000000000flo0001</sys_update_name>
+  <type>flow</type>
+</sys_hub_flow>
+
+<!-- Flow Trigger: Record-based trigger on x_searchpulse_article_reputation when reputation_score < 40 -->
+<sys_hub_trigger_instance action="INSERT_OR_UPDATE">
+  <active>true</active>
+  <condition><![CDATA[reputation_score<40]]></condition>
+  <flow display_value="SearchPulse Content Quality Monitor">xsp0000000000000000000000flo0001</flow>
+  <order>0</order>
+  <sys_class_name>sys_hub_trigger_instance</sys_class_name>
+  <sys_id>xsp0000000000000000000000tri0001</sys_id>
+  <sys_name>SearchPulse Content Quality Monitor trigger</sys_name>
+  <sys_package display_value="SearchPulse">x_searchpulse</sys_package>
+  <sys_scope display_value="SearchPulse">x_searchpulse</sys_scope>
+  <sys_update_name>sys_hub_trigger_instance_xsp0000000000000000000000tri0001</sys_update_name>
+  <table>x_searchpulse_article_reputation</table>
+  <trigger_type>RECORD</trigger_type>
+</sys_hub_trigger_instance>
+
+<!-- Business Rule as fallback automation for the Flow trigger:
+     When reputation_score drops below 40, create a task for the KB owner -->
+<sys_script action="INSERT_OR_UPDATE">
+  <access>package_private</access>
+  <action_delete>false</action_delete>
+  <action_insert>false</action_insert>
+  <action_query>false</action_query>
+  <action_update>true</action_update>
+  <active>true</active>
+  <add_message>false</add_message>
+  <advanced>true</advanced>
+  <change_fields>false</change_fields>
+  <client_callable>false</client_callable>
+  <collection>x_searchpulse_article_reputation</collection>
+  <condition><![CDATA[current.reputation_score.changesTo() && parseInt(current.reputation_score.toString()) < 40 && parseInt(previous.reputation_score.toString()) >= 40]]></condition>
+  <description>SearchPulse Content Quality Monitor: when reputation_score drops below 40, create a knowledge task for the article owner and send an email notification.</description>
+  <execute_function>false</execute_function>
+  <filter_condition/>
+  <is_rest>false</is_rest>
+  <message_fields/>
+  <name>SearchPulse Content Quality Monitor</name>
+  <order>100</order>
+  <priority>100</priority>
+  <rest_method/>
+  <rest_method_text/>
+  <rest_service/>
+  <rest_service_text/>
+  <rest_variables/>
+  <role_conditions/>
+  <run_as>system</run_as>
+  <script><![CDATA[(function executeRule(current, previous) {
+
+    var articleSysId = current.getValue('article');
+    if (!articleSysId) { return; }
+
+    /* Look up the KB article */
+    var articleGR = new GlideRecord('kb_knowledge');
+    if (!articleGR.get(articleSysId)) { return; }
+
+    var articleTitle  = articleGR.getDisplayValue('short_description');
+    var articleNumber = articleGR.getValue('number');
+    var ownerId       = articleGR.getValue('author');
+    var newScore      = parseInt(current.getValue('reputation_score'), 10);
+
+    gs.log('SearchPulse Content Quality Monitor: article ' + articleNumber +
+           ' (' + articleTitle + ') dropped to score ' + newScore + '. Creating improvement task.', 'SearchPulse');
+
+    /* Action 1: Create a task for the Knowledge Owner */
+    var taskGR = new GlideRecord('kb_task');
+    if (!taskGR.isValid()) {
+        /* Fallback to incident task if kb_task not available */
+        taskGR = new GlideRecord('task');
+    }
+    taskGR.initialize();
+    taskGR.setValue('short_description',
+        '[SearchPulse] Article needs review: ' + articleTitle);
+    taskGR.setValue('description',
+        'SearchPulse has detected that KB article ' + articleNumber + ' (' + articleTitle + ') ' +
+        'has a reputation score of ' + newScore + '/100, which is below the quality threshold of 40.\n\n' +
+        'Users are signalling low satisfaction when searching for this content.\n\n' +
+        'Recommended actions:\n' +
+        '1. Review article content for accuracy and completeness\n' +
+        '2. Update outdated procedures or screenshots\n' +
+        '3. Improve clarity and structure\n' +
+        '4. Verify article addresses common user queries\n\n' +
+        'Article link: /kb_view.do?sysparm_article=' + articleNumber);
+    taskGR.setValue('priority', 2);
+    if (ownerId) { taskGR.setValue('assigned_to', ownerId); }
+    var taskSysId = taskGR.insert();
+    gs.log('SearchPulse: created task ' + taskSysId + ' for article ' + articleNumber, 'SearchPulse');
+
+    /* Action 2: Notify content owner via email notification event */
+    if (ownerId) {
+        gs.eventQueue('x_searchpulse.low_reputation_alert', current, ownerId, articleTitle);
+    }
+
+    /* Action 3: Log article update suggestion */
+    gs.log('SearchPulse Content Quality Monitor: suggest updating article ' +
+           articleNumber + ' - current score=' + newScore + '/100', 'SearchPulse');
+
+})(current, previous);]]></script>
+  <sys_class_name>sys_script</sys_class_name>
+  <sys_id>xsp0000000000000000000000br00001</sys_id>
+  <sys_name>SearchPulse Content Quality Monitor</sys_name>
+  <sys_package display_value="SearchPulse">x_searchpulse</sys_package>
+  <sys_scope display_value="SearchPulse">x_searchpulse</sys_scope>
+  <sys_update_name>sys_script_xsp0000000000000000000000br00001</sys_update_name>
+  <table>x_searchpulse_article_reputation</table>
+  <when>after</when>
+</sys_script>
+
+<!-- REPORT 1: Top Failing Articles -->
+<sys_report action="INSERT_OR_UPDATE">
+  <add_fields/>
+  <aggregate>COUNT</aggregate>
+  <chart_size>large</chart_size>
+  <chart_type>bar</chart_type>
+  <color>color4</color>
+  <field>article</field>
+  <filter_data><![CDATA[reputation_score<50]]></filter_data>
+  <group_by>article</group_by>
+  <is_scheduled>false</is_scheduled>
+  <name>SearchPulse - Top Failing Articles</name>
+  <order_by>reputation_score</order_by>
+  <order_direction>asc</order_direction>
+  <roles>x_searchpulse.analyst</roles>
+  <row_count>10</row_count>
+  <show_empty>false</show_empty>
+  <sumfield/>
+  <sys_class_name>sys_report</sys_class_name>
+  <sys_id>xsp0000000000000000000000rpt0001</sys_id>
+  <sys_name>SearchPulse - Top Failing Articles</sys_name>
+  <sys_package display_value="SearchPulse">x_searchpulse</sys_package>
+  <sys_scope display_value="SearchPulse">x_searchpulse</sys_scope>
+  <sys_update_name>sys_report_xsp0000000000000000000000rpt0001</sys_update_name>
+  <table>x_searchpulse_article_reputation</table>
+  <title>Top Failing Articles (Reputation below 50)</title>
+  <type>bar</type>
+  <user/>
+</sys_report>
+
+<!-- REPORT 2: Articles with Highest Reputation -->
+<sys_report action="INSERT_OR_UPDATE">
+  <add_fields/>
+  <aggregate>COUNT</aggregate>
+  <chart_size>large</chart_size>
+  <chart_type>bar</chart_type>
+  <color>color2</color>
+  <field>article</field>
+  <filter_data><![CDATA[reputation_score>=70]]></filter_data>
+  <group_by>article</group_by>
+  <is_scheduled>false</is_scheduled>
+  <name>SearchPulse - Highest Reputation Articles</name>
+  <order_by>reputation_score</order_by>
+  <order_direction>desc</order_direction>
+  <roles>x_searchpulse.analyst</roles>
+  <row_count>10</row_count>
+  <show_empty>false</show_empty>
+  <sys_class_name>sys_report</sys_class_name>
+  <sys_id>xsp0000000000000000000000rpt0002</sys_id>
+  <sys_name>SearchPulse - Highest Reputation Articles</sys_name>
+  <sys_package display_value="SearchPulse">x_searchpulse</sys_package>
+  <sys_scope display_value="SearchPulse">x_searchpulse</sys_scope>
+  <sys_update_name>sys_report_xsp0000000000000000000000rpt0002</sys_update_name>
+  <table>x_searchpulse_article_reputation</table>
+  <title>Articles with Highest Reputation (Score 70+)</title>
+  <type>bar</type>
+  <user/>
+</sys_report>
+
+<!-- REPORT 3: Search Reformulation Rate -->
+<sys_report action="INSERT_OR_UPDATE">
+  <add_fields/>
+  <aggregate>COUNT</aggregate>
+  <chart_size>large</chart_size>
+  <chart_type>pie</chart_type>
+  <color>color3</color>
+  <field>reformulated</field>
+  <group_by>reformulated</group_by>
+  <is_scheduled>false</is_scheduled>
+  <name>SearchPulse - Search Reformulation Rate</name>
+  <order_direction>desc</order_direction>
+  <roles>x_searchpulse.analyst</roles>
+  <row_count>10</row_count>
+  <show_empty>false</show_empty>
+  <sys_class_name>sys_report</sys_class_name>
+  <sys_id>xsp0000000000000000000000rpt0003</sys_id>
+  <sys_name>SearchPulse - Search Reformulation Rate</sys_name>
+  <sys_package display_value="SearchPulse">x_searchpulse</sys_package>
+  <sys_scope display_value="SearchPulse">x_searchpulse</sys_scope>
+  <sys_update_name>sys_report_xsp0000000000000000000000rpt0003</sys_update_name>
+  <table>x_searchpulse_session</table>
+  <title>Search Reformulation Rate</title>
+  <type>pie</type>
+  <user/>
+</sys_report>
+
+<!-- REPORT 4: Summary Thumbs Down Rate -->
+<sys_report action="INSERT_OR_UPDATE">
+  <add_fields/>
+  <aggregate>COUNT</aggregate>
+  <chart_size>large</chart_size>
+  <chart_type>pie</chart_type>
+  <color>color1</color>
+  <field>summary_feedback</field>
+  <group_by>summary_feedback</group_by>
+  <is_scheduled>false</is_scheduled>
+  <name>SearchPulse - Summary Thumbs Down Rate</name>
+  <order_direction>desc</order_direction>
+  <roles>x_searchpulse.analyst</roles>
+  <row_count>10</row_count>
+  <show_empty>false</show_empty>
+  <sys_class_name>sys_report</sys_class_name>
+  <sys_id>xsp0000000000000000000000rpt0004</sys_id>
+  <sys_name>SearchPulse - Summary Thumbs Down Rate</sys_name>
+  <sys_package display_value="SearchPulse">x_searchpulse</sys_package>
+  <sys_scope display_value="SearchPulse">x_searchpulse</sys_scope>
+  <sys_update_name>sys_report_xsp0000000000000000000000rpt0004</sys_update_name>
+  <table>x_searchpulse_session</table>
+  <title>AI Summary Thumbs Down Rate</title>
+  <type>pie</type>
+  <user/>
+</sys_report>
+
+<!-- DASHBOARD: SearchPulse Insights -->
+<pa_dashboard action="INSERT_OR_UPDATE">
+  <ac_users/>
+  <description>SearchPulse Insights - tracks article reputation trends, search failure rates, and content quality signals.</description>
+  <name>SearchPulse Insights</name>
+  <sys_class_name>pa_dashboard</sys_class_name>
+  <sys_id>xsp0000000000000000000000dsh0001</sys_id>
+  <sys_name>SearchPulse Insights</sys_name>
+  <sys_package display_value="SearchPulse">x_searchpulse</sys_package>
+  <sys_scope display_value="SearchPulse">x_searchpulse</sys_scope>
+  <sys_update_name>pa_dashboard_xsp0000000000000000000000dsh0001</sys_update_name>
+</pa_dashboard>
+
+<!-- Dashboard Tabs -->
+<pa_tab action="INSERT_OR_UPDATE">
+  <dashboard display_value="SearchPulse Insights">xsp0000000000000000000000dsh0001</dashboard>
+  <name>Overview</name>
+  <order>0</order>
+  <sys_class_name>pa_tab</sys_class_name>
+  <sys_id>xsp0000000000000000000000tab0001</sys_id>
+  <sys_name>SearchPulse Insights Overview</sys_name>
+  <sys_package display_value="SearchPulse">x_searchpulse</sys_package>
+  <sys_scope display_value="SearchPulse">x_searchpulse</sys_scope>
+  <sys_update_name>pa_tab_xsp0000000000000000000000tab0001</sys_update_name>
+</pa_tab>
+
+<!-- Dashboard Widgets linking the 4 reports -->
+<pa_widget_instance action="INSERT_OR_UPDATE">
+  <dashboard display_value="SearchPulse Insights">xsp0000000000000000000000dsh0001</dashboard>
+  <data_source display_value="SearchPulse - Top Failing Articles">xsp0000000000000000000000rpt0001</data_source>
+  <height>4</height>
+  <order>0</order>
+  <sys_class_name>pa_widget_instance</sys_class_name>
+  <sys_id>xsp0000000000000000000000wgi0001</sys_id>
+  <sys_name>SearchPulse Insights - Failing Articles Widget</sys_name>
+  <sys_package display_value="SearchPulse">x_searchpulse</sys_package>
+  <sys_scope display_value="SearchPulse">x_searchpulse</sys_scope>
+  <sys_update_name>pa_widget_instance_xsp0000000000000000000000wgi0001</sys_update_name>
+  <tab display_value="Overview">xsp0000000000000000000000tab0001</tab>
+  <width>6</width>
+  <x>0</x>
+  <y>0</y>
+</pa_widget_instance>
+
+<pa_widget_instance action="INSERT_OR_UPDATE">
+  <dashboard display_value="SearchPulse Insights">xsp0000000000000000000000dsh0001</dashboard>
+  <data_source display_value="SearchPulse - Highest Reputation Articles">xsp0000000000000000000000rpt0002</data_source>
+  <height>4</height>
+  <order>1</order>
+  <sys_class_name>pa_widget_instance</sys_class_name>
+  <sys_id>xsp0000000000000000000000wgi0002</sys_id>
+  <sys_name>SearchPulse Insights - Top Reputation Widget</sys_name>
+  <sys_package display_value="SearchPulse">x_searchpulse</sys_package>
+  <sys_scope display_value="SearchPulse">x_searchpulse</sys_scope>
+  <sys_update_name>pa_widget_instance_xsp0000000000000000000000wgi0002</sys_update_name>
+  <tab display_value="Overview">xsp0000000000000000000000tab0001</tab>
+  <width>6</width>
+  <x>6</x>
+  <y>0</y>
+</pa_widget_instance>
+
+<pa_widget_instance action="INSERT_OR_UPDATE">
+  <dashboard display_value="SearchPulse Insights">xsp0000000000000000000000dsh0001</dashboard>
+  <data_source display_value="SearchPulse - Search Reformulation Rate">xsp0000000000000000000000rpt0003</data_source>
+  <height>4</height>
+  <order>2</order>
+  <sys_class_name>pa_widget_instance</sys_class_name>
+  <sys_id>xsp0000000000000000000000wgi0003</sys_id>
+  <sys_name>SearchPulse Insights - Reformulation Rate Widget</sys_name>
+  <sys_package display_value="SearchPulse">x_searchpulse</sys_package>
+  <sys_scope display_value="SearchPulse">x_searchpulse</sys_scope>
+  <sys_update_name>pa_widget_instance_xsp0000000000000000000000wgi0003</sys_update_name>
+  <tab display_value="Overview">xsp0000000000000000000000tab0001</tab>
+  <width>6</width>
+  <x>0</x>
+  <y>4</y>
+</pa_widget_instance>
+
+<pa_widget_instance action="INSERT_OR_UPDATE">
+  <dashboard display_value="SearchPulse Insights">xsp0000000000000000000000dsh0001</dashboard>
+  <data_source display_value="SearchPulse - Summary Thumbs Down Rate">xsp0000000000000000000000rpt0004</data_source>
+  <height>4</height>
+  <order>3</order>
+  <sys_class_name>pa_widget_instance</sys_class_name>
+  <sys_id>xsp0000000000000000000000wgi0004</sys_id>
+  <sys_name>SearchPulse Insights - Thumbs Down Rate Widget</sys_name>
+  <sys_package display_value="SearchPulse">x_searchpulse</sys_package>
+  <sys_scope display_value="SearchPulse">x_searchpulse</sys_scope>
+  <sys_update_name>pa_widget_instance_xsp0000000000000000000000wgi0004</sys_update_name>
+  <tab display_value="Overview">xsp0000000000000000000000tab0001</tab>
+  <width>6</width>
+  <x>6</x>
+  <y>4</y>
+</pa_widget_instance>
+
+<!-- UPDATE SET RECORD -->
+<sys_update_set action="INSERT_OR_UPDATE">
+  <application display_value="SearchPulse">x_searchpulse</application>
+  <description>SearchPulse Agent POC - Complete update set containing all tables, script includes, scheduled job, UI script, Service Portal widgets, flow automation, and analytics dashboard for the SearchPulse agentic search trust system.</description>
+  <is_default>false</is_default>
+  <name>SearchPulse_Agent_POC</name>
+  <origin_sys_id/>
+  <release_date/>
+  <state>complete</state>
+  <sys_class_name>sys_update_set</sys_class_name>
+  <sys_id>xsp0000000000000000000000upd0001</sys_id>
+  <sys_name>SearchPulse_Agent_POC</sys_name>
+  <sys_package display_value="SearchPulse">x_searchpulse</sys_package>
+  <sys_scope display_value="SearchPulse">x_searchpulse</sys_scope>
+  <sys_update_name>sys_update_set_xsp0000000000000000000000upd0001</sys_update_name>
+</sys_update_set>
+
+</unload>
